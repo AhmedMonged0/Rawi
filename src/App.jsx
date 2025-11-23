@@ -530,12 +530,22 @@ export default function App() {
     localStorage.setItem('rawi_token', token);
   };
 
-  const handleLogout = () => {
-    setUser(null);
-    localStorage.removeItem('rawi_user');
-    localStorage.removeItem('rawi_token');
-    addToast("تم تسجيل الخروج بنجاح");
-  };
+// داخل دالة App
+const handleLogout = () => {
+  // 1. تصفير الحالة
+  setUser(null);
+  setIsAdminOpen(false); // إغلاق لوحة التحكم إن كانت مفتوحة
+  
+  // 2. مسح التخزين المحلي بالكامل
+  localStorage.removeItem('rawi_user');
+  localStorage.removeItem('rawi_token');
+  
+  // 3. إظهار رسالة
+  addToast("تم تسجيل الخروج بنجاح");
+  
+  // 4. (اختياري) إعادة تحميل الصفحة لضمان تنظيف الذاكرة
+  window.location.reload(); 
+};
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-['Tajawal'] selection:bg-purple-500/30 overflow-x-hidden" dir="rtl">
