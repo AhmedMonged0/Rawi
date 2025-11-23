@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   ShoppingBag, Search, BookOpen, X, Star, ArrowRight, Heart, Menu, 
   Globe, Sparkles, MessageSquare, Send, Bot, Loader2, Check, 
-  CreditCard, Trash2, Mail, User, Phone, Code, Feather, Zap, LogIn, LogOut, UserPlus, ShieldCheck, Users
+  CreditCard, Trash2, Mail, User, Phone, Code, Feather, Zap, LogIn, LogOut, ShieldCheck, Users, History
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -23,100 +23,6 @@ const generateGeminiContent = async (prompt) => {
     return "يرجى التأكد من مفتاح API أو الاتصال بالإنترنت.";
   }
 };
-
-// --- Mock Data ---
-const books = [
-  {
-    id: 1,
-    title: "خوارزميات المستقبل",
-    author: "د. أحمد الرفاعي",
-    price: 120,
-    category: "تكنولوجيا",
-    color: "from-purple-600 to-blue-600",
-    desc: "استكشف كيف تشكل الخوارزميات عالمنا ومستقبلنا في هذا الكتاب الرائد.",
-    rating: 4.8,
-    pages: 320,
-    lang: "العربية",
-    reviews: 1240,
-    image: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=800",
-    isNew: true
-  },
-  {
-    id: 2,
-    title: "أسرار الكون المظلم",
-    author: "سارة الفلكي",
-    price: 95,
-    category: "علوم",
-    color: "from-slate-700 to-gray-900",
-    desc: "رحلة مذهلة في أعماق الفضاء واكتشاف المادة المظلمة.",
-    rating: 4.5,
-    pages: 280,
-    lang: "العربية",
-    reviews: 850,
-    image: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&q=80&w=800",
-    isNew: false
-  },
-  {
-    id: 3,
-    title: "رحلة في عقل آلة",
-    author: "عمر الذكي",
-    price: 150,
-    category: "ذكاء اصطناعي",
-    color: "from-indigo-600 to-violet-600",
-    desc: "كيف تفكر الآلات؟ وهل يمكن أن تمتلك وعياً؟ إجابات مثيرة في هذا الكتاب.",
-    rating: 4.9,
-    pages: 450,
-    lang: "مترجم",
-    reviews: 3200,
-    image: "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&q=80&w=800",
-    isNew: true
-  },
-  {
-    id: 4,
-    title: "فن التصميم الرقمي",
-    author: "ليلى المصمم",
-    price: 85,
-    category: "فنون",
-    color: "from-pink-500 to-rose-600",
-    desc: "دليل شامل للمبدعين في عصر الرقمنة والألوان.",
-    rating: 4.7,
-    pages: 190,
-    lang: "العربية",
-    reviews: 5100,
-    image: "https://images.unsplash.com/photo-1558655146-d09347e92766?auto=format&fit=crop&q=80&w=800",
-    isNew: false
-  },
-  {
-    id: 5,
-    title: "تاريخ ما بعد البشرية",
-    author: "يوسف المؤرخ",
-    price: 110,
-    category: "خيال علمي",
-    color: "from-cyan-600 to-blue-700",
-    desc: "رواية تستشرف مستقبل البشرية بعد ألف عام من الآن.",
-    rating: 4.6,
-    pages: 400,
-    lang: "العربية",
-    reviews: 2100,
-    image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=800",
-    isNew: true
-  },
-  {
-    id: 6,
-    title: "البرمجة للجميع",
-    author: "أكاديمية الكود",
-    price: 200,
-    category: "تكنولوجيا",
-    color: "from-emerald-500 to-teal-700",
-    desc: "أسهل طريقة لتعلم البرمجة من الصفر وحتى الاحتراف.",
-    rating: 5.0,
-    pages: 550,
-    lang: "مترجم",
-    reviews: 1800,
-    image: "https://images.unsplash.com/photo-1587620962725-abab7fe55159?auto=format&fit=crop&q=80&w=800",
-    isNew: false
-  }
-];
 
 // --- Components ---
 
@@ -222,7 +128,7 @@ const ParticleBackground = () => {
   return <canvas ref={canvasRef} className="fixed top-0 left-0 w-full h-full pointer-events-none z-0 opacity-60" />;
 };
 
-// --- Auth Modal Component (Updated for Role) ---
+// --- Auth Modal ---
 const AuthModal = ({ isOpen, onClose, onLoginSuccess, addToast }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({ username: '', email: '', password: '' });
@@ -247,7 +153,7 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, addToast }) => {
           onLoginSuccess(data.user, data.token);
           onClose();
         } else {
-          setIsLogin(true); // Switch to login after signup
+          setIsLogin(true);
         }
       } else {
         addToast(data.message);
@@ -265,62 +171,34 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, addToast }) => {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-[#151515] border border-purple-500/30 w-full max-w-md rounded-2xl p-8 relative shadow-2xl">
         <button onClick={onClose} className="absolute top-4 left-4 text-gray-400 hover:text-white"><X /></button>
-        
         <div className="text-center mb-8">
           <h2 className="text-2xl font-bold text-white mb-2">{isLogin ? 'أهلاً بعودتك' : 'انضم لعائلة راوي'}</h2>
           <p className="text-gray-400 text-sm">بوابتك نحو المعرفة والمستقبل</p>
         </div>
-
         <form onSubmit={handleSubmit} className="space-y-4">
           {!isLogin && (
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">الاسم</label>
-              <input type="text" required className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-purple-500 outline-none" 
-                value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} />
-            </div>
+            <div><label className="block text-sm text-gray-400 mb-1">الاسم</label><input type="text" required className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-purple-500 outline-none" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} /></div>
           )}
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">البريد الإلكتروني</label>
-            <input type="email" required className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-purple-500 outline-none" 
-              value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">كلمة المرور</label>
-            <input type="password" required className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-purple-500 outline-none" 
-              value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
-          </div>
-
-          <button disabled={isLoading} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 py-3 rounded-lg font-bold text-white hover:opacity-90 transition-opacity flex justify-center items-center gap-2 mt-4">
-            {isLoading ? <Loader2 className="animate-spin" /> : (isLogin ? 'دخول' : 'إنشاء حساب')}
-          </button>
+          <div><label className="block text-sm text-gray-400 mb-1">البريد الإلكتروني</label><input type="email" required className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-purple-500 outline-none" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></div>
+          <div><label className="block text-sm text-gray-400 mb-1">كلمة المرور</label><input type="password" required className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-purple-500 outline-none" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} /></div>
+          <button disabled={isLoading} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 py-3 rounded-lg font-bold text-white hover:opacity-90 transition-opacity flex justify-center items-center gap-2 mt-4">{isLoading ? <Loader2 className="animate-spin" /> : (isLogin ? 'دخول' : 'إنشاء حساب')}</button>
         </form>
-
-        <div className="mt-6 text-center text-sm text-gray-400">
-          {isLogin ? "ليس لديك حساب؟" : "لديك حساب بالفعل؟"}
-          <button onClick={() => setIsLogin(!isLogin)} className="text-purple-400 font-bold mr-2 hover:underline">
-            {isLogin ? "أنشئ حساباً" : "سجل دخول"}
-          </button>
-        </div>
+        <div className="mt-6 text-center text-sm text-gray-400">{isLogin ? "ليس لديك حساب؟" : "لديك حساب بالفعل؟"} <button onClick={() => setIsLogin(!isLogin)} className="text-purple-400 font-bold mr-2 hover:underline">{isLogin ? "أنشئ حساباً" : "سجل دخول"}</button></div>
       </motion.div>
     </motion.div>
   );
 };
 
-// --- Admin Dashboard Component (NEW) ---
+// --- Admin Dashboard ---
 const AdminDashboard = ({ isOpen, onClose, token }) => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (isOpen) {
-      fetch('/api/admin/users', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
+      fetch('/api/admin/users', { headers: { 'Authorization': `Bearer ${token}` } })
       .then(res => res.json())
-      .then(data => {
-        setUsers(data);
-        setLoading(false);
-      })
+      .then(data => { setUsers(data); setLoading(false); })
       .catch(err => console.error(err));
     }
   }, [isOpen, token]);
@@ -331,56 +209,51 @@ const AdminDashboard = ({ isOpen, onClose, token }) => {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/95 p-6 overflow-auto flex items-center justify-center">
       <div className="w-full max-w-5xl bg-[#111] border border-white/10 rounded-2xl p-8 relative max-h-[90vh] overflow-y-auto custom-scrollbar">
         <button onClick={onClose} className="absolute top-4 left-4 text-gray-400 hover:text-white"><X /></button>
-        
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="text-3xl font-bold text-white flex items-center gap-2">
-            <ShieldCheck className="text-green-500" /> لوحة التحكم
-          </h2>
-        </div>
-
+        <div className="flex justify-between items-center mb-8"><h2 className="text-3xl font-bold text-white flex items-center gap-2"><ShieldCheck className="text-green-500" /> لوحة التحكم</h2></div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-[#1a1a1a] p-6 rounded-2xl border border-white/10 flex items-center gap-4">
-            <div className="p-3 bg-blue-500/20 rounded-full text-blue-400"><Users size={24} /></div>
-            <div>
-              <h3 className="text-gray-400 text-sm">المستخدمين</h3>
-              <p className="text-2xl font-bold text-white">{users.length}</p>
-            </div>
-          </div>
+          <div className="bg-[#1a1a1a] p-6 rounded-2xl border border-white/10 flex items-center gap-4"><div className="p-3 bg-blue-500/20 rounded-full text-blue-400"><Users size={24} /></div><div><h3 className="text-gray-400 text-sm">المستخدمين</h3><p className="text-2xl font-bold text-white">{users.length}</p></div></div>
         </div>
-
         <div className="bg-[#1a1a1a] rounded-2xl border border-white/10 overflow-hidden">
           <table className="w-full text-right text-sm text-gray-300">
-            <thead className="bg-white/5 text-gray-400">
-              <tr>
-                <th className="p-4">ID</th>
-                <th className="p-4">الاسم</th>
-                <th className="p-4">البريد</th>
-                <th className="p-4">الصلاحية</th>
-                <th className="p-4">التاريخ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan="5" className="p-8 text-center"><Loader2 className="animate-spin mx-auto" /></td></tr>
-              ) : (
-                users.map(u => (
-                  <tr key={u.id} className="border-b border-white/5 hover:bg-white/5">
-                    <td className="p-4">#{u.id}</td>
-                    <td className="p-4 font-bold text-white">{u.username}</td>
-                    <td className="p-4">{u.email}</td>
-                    <td className="p-4">
-                      <span className={`px-2 py-1 rounded text-xs ${u.role === 'admin' ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                        {u.role}
-                      </span>
-                    </td>
-                    <td className="p-4">{new Date(u.created_at).toLocaleDateString('ar-EG')}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
+            <thead className="bg-white/5 text-gray-400"><tr><th className="p-4">ID</th><th className="p-4">الاسم</th><th className="p-4">البريد</th><th className="p-4">الصلاحية</th><th className="p-4">التاريخ</th></tr></thead>
+            <tbody>{loading ? (<tr><td colSpan="5" className="p-8 text-center"><Loader2 className="animate-spin mx-auto" /></td></tr>) : (users.map(u => (<tr key={u.id} className="border-b border-white/5 hover:bg-white/5"><td className="p-4">#{u.id}</td><td className="p-4 font-bold text-white">{u.username}</td><td className="p-4">{u.email}</td><td className="p-4"><span className={`px-2 py-1 rounded text-xs ${u.role === 'admin' ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'}`}>{u.role}</span></td><td className="p-4">{new Date(u.created_at).toLocaleDateString('ar-EG')}</td></tr>)))}</tbody>
           </table>
         </div>
       </div>
+    </motion.div>
+  );
+};
+
+// --- User Profile Component (NEW) ---
+const UserProfile = ({ isOpen, onClose, user }) => {
+  if (!isOpen || !user) return null;
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[90] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+      <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-[#151515] w-full max-w-2xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
+        <div className="h-32 bg-gradient-to-r from-purple-600 to-blue-600 relative">
+          <button onClick={onClose} className="absolute top-4 left-4 bg-black/20 hover:bg-black/40 text-white p-2 rounded-full backdrop-blur-sm transition-colors"><X size={20}/></button>
+        </div>
+        <div className="px-8 pb-8">
+          <div className="relative -mt-12 mb-6 flex justify-between items-end">
+            <div className="bg-[#151515] p-2 rounded-full"><div className="w-24 h-24 bg-gray-800 rounded-full flex items-center justify-center border-4 border-[#151515] text-4xl font-bold text-gray-400">{user.username.charAt(0).toUpperCase()}</div></div>
+            <div className="mb-2"><span className="bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full text-xs font-bold border border-purple-500/30">{user.role === 'admin' ? 'مدير النظام' : 'قارئ مميز'}</span></div>
+          </div>
+          <h2 className="text-3xl font-bold text-white mb-1">{user.username}</h2>
+          <p className="text-gray-400 mb-8">{user.email}</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white/5 rounded-xl p-5 border border-white/5">
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><History size={18} className="text-purple-400"/> سجل الطلبات</h3>
+              <div className="text-center py-8 text-gray-500 text-sm">لا توجد طلبات سابقة حتى الآن.<br/>ابدأ رحلتك واقتنِ كتابك الأول!</div>
+            </div>
+            <div className="bg-white/5 rounded-xl p-5 border border-white/5">
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><Heart size={18} className="text-red-400"/> الكتب المفضلة</h3>
+              <div className="text-center py-8 text-gray-500 text-sm">قائمة أمنياتك فارغة حالياً.</div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
     </motion.div>
   );
 };
@@ -395,15 +268,15 @@ const BookDetailsModal = ({ book, onClose, onAddToCart, onAddWishlist }) => (
   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-md p-4" onClick={onClose}>
     <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-[#151515] w-full max-w-4xl rounded-2xl overflow-hiddenYZ border border-white/10 shadow-2xl flex flex-col md:flex-row max-h-[90vh]" onClick={e => e.stopPropagation()}>
       <div className="md:w-1/3 relative overflow-hidden">
-        <img src={book.image} alt={book.title} className="w-full h-full object-cover absolute inset-0 blur-sm opacity-30" />
+        <img src={book.image_url || book.image} alt={book.title} className="w-full h-full object-cover absolute inset-0 blur-sm opacity-30" />
         <div className="relative h-full flex items-center justify-center p-8 z-10 bg-black/40">
-          <img src={book.image} alt={book.title} className="w-48 rounded-lg shadow-2xl shadow-black/50 transform hover:scale-105 transition-transform" />
+          <img src={book.image_url || book.image} alt={book.title} className="w-48 rounded-lg shadow-2xl shadow-black/50 transform hover:scale-105 transition-transform" />
         </div>
       </div>
       <div className="md:w-2/3 p-8 flex flex-col overflow-y-auto custom-scrollbar">
         <div className="flex justify-between items-start mb-4"><div><span className="text-purple-400 text-sm font-medium">{book.category}</span><h2 className="text-3xl font-bold text-white mt-1">{book.title}</h2><p className="text-gray-400">{book.author}</p></div><button onClick={onClose} className="text-gray-500 hover:text-white"><X /></button></div>
-        <div className="flex gap-6 text-sm text-gray-400 mb-6 border-b border-white/10 pb-4"><div className="flex items-center gap-1"><Star className="text-yellow-400 fill-yellow-400" size={16} /> {book.rating} ({book.reviews})</div><div className="flex items-center gap-1"><BookOpen size={16} /> {book.pages} صفحة</div><div className="flex items-center gap-1"><Globe size={16} /> {book.lang}</div></div>
-        <p className="text-gray-300 leading-relaxed mb-6">{book.desc} منصة "راوي" تقدم لك تجربة قراءة استثنائية.</p>
+        <div className="flex gap-6 text-sm text-gray-400 mb-6 border-b border-white/10 pb-4"><div className="flex items-center gap-1"><Star className="text-yellow-400 fill-yellow-400" size={16} /> {book.rating}</div><div className="flex items-center gap-1"><BookOpen size={16} /> {book.pages} صفحة</div><div className="flex items-center gap-1"><Globe size={16} /> {book.language}</div></div>
+        <p className="text-gray-300 leading-relaxed mb-6">{book.description || "وصف الكتاب غير متاح حالياً."}</p>
         <div className="flex gap-3 mb-8"><button onClick={() => onAddToCart(book)} className="flex-1 bg-white text-black py-3 rounded-xl font-bold hover:bg-gray-200 transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"><ShoppingBag size={20} /> إضافة للسلة - {book.price} ر.س</button><button onClick={() => onAddWishlist(book)} className="p-3 rounded-xl border border-white/20 hover:bg-white/10 text-white transition-all hover:scale-[1.05]"><Heart size={20} /></button></div>
       </div>
     </motion.div>
@@ -471,7 +344,8 @@ export default function App() {
   const [wishlist, setWishlist] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [isAdminOpen, setIsAdminOpen] = useState(false); // حالة لوحة التحكم
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false); // New State for Profile
   const [user, setUser] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -479,41 +353,39 @@ export default function App() {
   const [selectedBook, setSelectedBook] = useState(null);
   const [showCheckout, setShowCheckout] = useState(false);
   const [toasts, setToasts] = useState([]);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [books, setBooks] = useState([]); // New State for Books from DB
+  const [isLoadingBooks, setIsLoadingBooks] = useState(true);
   const aboutSectionRef = useRef(null);
-  const userMenuRef = useRef(null);
 
-  // Check for existing login on load
+  // Load User & Fonts
   useEffect(() => {
     const savedUser = localStorage.getItem('rawi_user');
-    const savedToken = localStorage.getItem('rawi_token');
-    if (savedUser && savedToken) {
-      setUser(JSON.parse(savedUser));
-    }
-    
-    // Inject Fonts
+    if (savedUser) setUser(JSON.parse(savedUser));
     const link = document.createElement('link');
     link.href = "https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap";
     link.rel = "stylesheet";
     document.head.appendChild(link);
   }, []);
 
-  // Close user menu when clicking outside
+  // Fetch Books from API (Database)
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
-        setIsUserMenuOpen(false);
+    const fetchBooks = async () => {
+      try {
+        const response = await fetch('/api/books');
+        if (response.ok) {
+          const data = await response.json();
+          setBooks(data);
+        } else {
+          console.error("Failed to fetch books");
+        }
+      } catch (error) {
+        console.error("Error fetching books:", error);
+      } finally {
+        setIsLoadingBooks(false);
       }
     };
-
-    if (isUserMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isUserMenuOpen]);
+    fetchBooks();
+  }, []);
 
   const addToast = (message) => { const id = Date.now(); setToasts(prev => [...prev, { id, message }]); setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000); };
   const addToCart = (book) => { if (!cart.find(item => item.id === book.id)) { setCart([...cart, book]); addToast(`تمت إضافة "${book.title}" للسلة`); } else { addToast(`"${book.title}" موجود بالفعل`); } };
@@ -521,7 +393,7 @@ export default function App() {
   const removeFromCart = (id) => setCart(cart.filter(i => i.id !== id));
   const scrollToAbout = () => aboutSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
   const filteredBooks = books.filter(book => (activeCategory === "الكل" || book.category === activeCategory) && (book.title.includes(searchQuery) || book.author.includes(searchQuery)));
-  const total = cart.reduce((sum, item) => sum + item.price, 0);
+  const total = cart.reduce((sum, item) => Number(sum) + Number(item.price), 0);
 
   // Auth Handlers
   const handleLoginSuccess = (userData, token) => {
@@ -530,22 +402,15 @@ export default function App() {
     localStorage.setItem('rawi_token', token);
   };
 
-// داخل دالة App
-const handleLogout = () => {
-  // 1. إفراغ التخزين المحلي
-  localStorage.removeItem('rawi_user');
-  localStorage.removeItem('rawi_token');
-
-  // 2. تحديث الحالة (State) فوراً لتختفي العناصر من الواجهة
-  setUser(null);
-  setIsAdminOpen(false); // إغلاق لوحة التحكم إذا كانت مفتوحة
-
-  // 3. إظهار رسالة تأكيد
-  addToast("تم تسجيل الخروج بنجاح");
-  
-  // 4. (اختياري ومهم) إعادة توجيه المستخدم للصفحة الرئيسية لتنظيف أي بقايا
-  window.location.href = "/"; 
-};
+  const handleLogout = () => {
+    localStorage.removeItem('rawi_user');
+    localStorage.removeItem('rawi_token');
+    setUser(null);
+    setIsAdminOpen(false);
+    setIsProfileOpen(false);
+    addToast("تم تسجيل الخروج بنجاح");
+    window.location.href = "/";
+  };
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-['Tajawal'] selection:bg-purple-500/30 overflow-x-hidden" dir="rtl">
@@ -559,43 +424,26 @@ const handleLogout = () => {
           <button className="hover:text-purple-400 transition-colors hover:scale-110 active:scale-95 transform"><Globe size={20} /></button>
           
           {user ? (
-            <div className="relative flex items-center gap-3" ref={userMenuRef}>
-              {/* زر لوحة التحكم (يظهر فقط للمدير) */}
+            <div className="relative group flex items-center gap-3">
               {user?.role === 'admin' && (
                 <button onClick={() => setIsAdminOpen(true)} className="text-xs bg-green-600/20 border border-green-600/50 text-green-400 hover:bg-green-600/30 px-3 py-1.5 rounded-full flex items-center gap-1 transition-all">
                   <ShieldCheck size={14} /> إدارة
                 </button>
               )}
 
-              <div 
-                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} 
-                className="flex items-center gap-2 hover:text-purple-400 transition-colors cursor-pointer"
-              >
+              <div className="flex items-center gap-2 hover:text-purple-400 transition-colors cursor-pointer">
                 <User size={20} />
                 <span className="text-sm font-bold hidden md:block">{user.username}</span>
               </div>
               
-              {/* Dropdown for Logout */}
-              <AnimatePresence>
-                {isUserMenuOpen && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="absolute left-0 top-full mt-2 w-40 bg-[#151515] border border-white/10 rounded-xl shadow-xl overflow-hidden z-[60]"
-                  >
-                    <button 
-                      onClick={() => {
-                        handleLogout();
-                        setIsUserMenuOpen(false);
-                      }} 
-                      className="w-full text-right px-4 py-3 hover:bg-white/5 text-red-400 text-sm flex items-center gap-2"
-                    >
-                      <LogOut size={16} /> تسجيل خروج
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <div className="absolute left-0 top-full mt-2 w-48 bg-[#151515] border border-white/10 rounded-xl shadow-xl overflow-hidden hidden group-hover:block z-[60]">
+                <button onClick={() => setIsProfileOpen(true)} className="w-full text-right px-4 py-3 hover:bg-white/5 text-gray-300 text-sm flex items-center gap-2 border-b border-white/5">
+                  <User size={16} /> الملف الشخصي
+                </button>
+                <button onClick={handleLogout} className="w-full text-right px-4 py-3 hover:bg-white/5 text-red-400 text-sm flex items-center gap-2">
+                  <LogOut size={16} /> تسجيل خروج
+                </button>
+              </div>
             </div>
           ) : (
             <button onClick={() => setIsAuthOpen(true)} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm font-bold transition-all">
@@ -614,7 +462,7 @@ const handleLogout = () => {
           <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8 }}>
             <span className="inline-flex items-center gap-2 py-1 px-3 rounded-full bg-white/5 border border-white/10 text-purple-400 text-sm font-medium mb-4 backdrop-blur-sm"><Sparkles size={14} /> مكتبة المستقبل الذكية</span>
             <h1 className="text-5xl md:text-7xl font-bold leading-tight mb-6 text-white">اكتشف عوالماً <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">لا حدود لها</span></h1>
-            <p className="text-gray-400 text-lg mb-8 max-w-lg leading-relaxed">منصة "راوي" تقدم لك تجربة قراءة استثنائية تجمع بين سحر الورق وتقنيات المستقبل. تصفح آلاف العناوين المختارة بعناية.</p>
+            <p className="text-gray-400 text-lg mb-8 max-w-lg leading-relaxed">منصة "راوي" تقدم لك تجربة قراءة استثنائية تجمع بين سحر الورق وتقنيات المستقبل.</p>
             <div className="flex flex-wrap gap-4"><button onClick={() => document.getElementById('books-section').scrollIntoView({behavior: 'smooth'})} className="bg-white text-black px-8 py-3 rounded-full font-bold hover:bg-gray-200 transition-all flex items-center gap-2 hover:scale-105 active:scale-95"><Sparkles size={18} /> تصفح الكتب الجديدة</button><button onClick={scrollToAbout} className="border border-white/20 px-8 py-3 rounded-full font-medium hover:bg-white/5 hover:border-white/50 transition-all bg-white/5 backdrop-blur hover:scale-105 active:scale-95 text-white">انضم لمجتمع القراء</button></div>
           </motion.div>
           <div className="flex justify-center lg:justify-end perspective-1000 group">
@@ -641,13 +489,17 @@ const handleLogout = () => {
             </div>
           </div>
           
-          {filteredBooks.length === 0 ? <div className="text-center py-20 text-gray-500">لا توجد حكايات مطابقة 🔍</div> : (
+          {isLoadingBooks ? (
+            <div className="text-center py-20"><Loader2 className="animate-spin mx-auto text-purple-500 w-10 h-10" /></div>
+          ) : filteredBooks.length === 0 ? (
+            <div className="text-center py-20 text-gray-500">لا توجد حكايات مطابقة 🔍</div>
+          ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               <AnimatePresence mode="popLayout">{filteredBooks.map((book) => (
                 <motion.div key={book.id} layout initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} whileHover={{ y: -10 }} className="group relative bg-white/5 rounded-3xl p-4 border border-white/5 hover:border-purple-500/30 transition-all duration-300">
                   <div className="relative aspect-[2/3] rounded-2xl overflow-hidden mb-4 shadow-2xl shadow-black/50 cursor-pointer" onClick={() => setSelectedBook(book)}>
-                    <img src={book.image} alt={book.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                    {book.isNew && <div className="absolute top-3 right-3 bg-blue-500/90 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1"><Zap size={12} /> جديد</div>}
+                    <img src={book.image_url || book.image} alt={book.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                    {book.is_new && <div className="absolute top-3 right-3 bg-blue-500/90 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1"><Zap size={12} /> جديد</div>}
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-xs text-gray-400"><span>{book.category}</span><div className="flex items-center gap-1 text-yellow-400"><Star size={12} className="fill-yellow-400" /><span>{book.rating}</span></div></div>
@@ -673,13 +525,14 @@ const handleLogout = () => {
         </div>
       </section>
 
-      {/* Cart & Modals */}
+      {/* Modals */}
       <AnimatePresence>
-        {isCartOpen && <motion.div initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }} className="fixed top-0 left-0 h-full w-full max-w-md bg-[#0f0f0f] border-r border-white/10 z-[70] p-6 flex flex-col shadow-2xl"><div className="flex justify-between items-center mb-6 pb-4 border-b border-white/10"><h2 className="text-2xl font-bold text-white flex gap-2 items-center"><ShoppingBag className="text-purple-500" /> حقيبة الراوي <span className="text-gray-400 text-lg">({cart.length})</span></h2><button onClick={() => setIsCartOpen(false)} className="text-white"><X /></button></div><div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-2">{cart.length === 0 ? <div className="flex flex-col items-center justify-center h-full text-gray-500 gap-4"><ShoppingBag className="w-16 h-16 opacity-20" /><p>الحقيبة فارغة، أضف بعض الحكايات.</p></div> : cart.map((item, idx) => (<motion.div layout key={`${item.id}-${idx}`} className="flex gap-4 bg-white/5 p-3 rounded-2xl border border-white/5 relative"><img src={item.image} className="w-16 h-20 object-cover rounded-xl" alt={item.title}/><div className="flex-1 flex flex-col justify-between"><div><h4 className="font-bold text-sm text-white">{item.title}</h4><p className="text-xs text-gray-400">{item.author}</p></div><div className="flex justify-between items-center"><span className="text-purple-400 font-bold">{item.price} ر.س</span><button onClick={() => removeFromCart(item.id)} className="text-red-400 hover:text-red-300 text-xs">حذف</button></div></div></motion.div>))}</div><div className="mt-6 pt-6 border-t border-white/10"><div className="flex justify-between text-xl font-bold text-white mb-4"><span>الإجمالي</span><span>{total} ر.س</span></div><button onClick={() => { setIsCartOpen(false); setShowCheckout(true); }} disabled={cart.length === 0} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 rounded-xl font-bold hover:opacity-90 disabled:opacity-50 shadow-lg shadow-purple-900/30">إتمام الشراء</button></div></motion.div>}
+        {isCartOpen && <motion.div initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }} className="fixed top-0 left-0 h-full w-full max-w-md bg-[#0f0f0f] border-r border-white/10 z-[70] p-6 flex flex-col shadow-2xl"><div className="flex justify-between items-center mb-6 pb-4 border-b border-white/10"><h2 className="text-2xl font-bold text-white flex gap-2 items-center"><ShoppingBag className="text-purple-500" /> حقيبة الراوي <span className="text-gray-400 text-lg">({cart.length})</span></h2><button onClick={() => setIsCartOpen(false)} className="text-white"><X /></button></div><div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-2">{cart.length === 0 ? <div className="flex flex-col items-center justify-center h-full text-gray-500 gap-4"><ShoppingBag className="w-16 h-16 opacity-20" /><p>الحقيبة فارغة، أضف بعض الحكايات.</p></div> : cart.map((item, idx) => (<motion.div layout key={`${item.id}-${idx}`} className="flex gap-4 bg-white/5 p-3 rounded-2xl border border-white/5 relative"><img src={item.image_url || item.image} className="w-16 h-20 object-cover rounded-xl" alt={item.title}/><div className="flex-1 flex flex-col justify-between"><div><h4 className="font-bold text-sm text-white">{item.title}</h4><p className="text-xs text-gray-400">{item.author}</p></div><div className="flex justify-between items-center"><span className="text-purple-400 font-bold">{item.price} ر.س</span><button onClick={() => removeFromCart(item.id)} className="text-red-400 hover:text-red-300 text-xs">حذف</button></div></div></motion.div>))}</div><div className="mt-6 pt-6 border-t border-white/10"><div className="flex justify-between text-xl font-bold text-white mb-4"><span>الإجمالي</span><span>{total} ر.س</span></div><button onClick={() => { setIsCartOpen(false); setShowCheckout(true); }} disabled={cart.length === 0} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 rounded-xl font-bold hover:opacity-90 disabled:opacity-50 shadow-lg shadow-purple-900/30">إتمام الشراء</button></div></motion.div>}
         {selectedBook && <BookDetailsModal book={selectedBook} onClose={() => setSelectedBook(null)} onAddToCart={(b) => { addToCart(b); setSelectedBook(null); }} onAddWishlist={toggleWishlist} />}
         {showCheckout && <CheckoutModal cart={cart} total={total} onClose={() => setShowCheckout(false)} onClearCart={() => setCart([])} />}
         <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} onLoginSuccess={handleLoginSuccess} addToast={addToast} />
         <AdminDashboard isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} token={localStorage.getItem('rawi_token')} />
+        <UserProfile isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} user={user} />
       </AnimatePresence>
 
       <AILibrarianWidget />
