@@ -479,7 +479,9 @@ export default function App() {
   const [selectedBook, setSelectedBook] = useState(null);
   const [showCheckout, setShowCheckout] = useState(false);
   const [toasts, setToasts] = useState([]);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const aboutSectionRef = useRef(null);
+  const userMenuRef = useRef(null);
 
   // Check for existing login on load
   useEffect(() => {
@@ -495,6 +497,23 @@ export default function App() {
     link.rel = "stylesheet";
     document.head.appendChild(link);
   }, []);
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    if (isUserMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isUserMenuOpen]);
 
   const addToast = (message) => { const id = Date.now(); setToasts(prev => [...prev, { id, message }]); setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000); };
   const addToCart = (book) => { if (!cart.find(item => item.id === book.id)) { setCart([...cart, book]); addToast(`تمت إضافة "${book.title}" للسلة`); } else { addToast(`"${book.title}" موجود بالفعل`); } };
@@ -530,7 +549,7 @@ export default function App() {
           <button className="hover:text-purple-400 transition-colors hover:scale-110 active:scale-95 transform"><Globe size={20} /></button>
           
           {user ? (
-            <div className="relative group flex items-center gap-3">
+            <div className="relative flex items-center gap-3" ref={userMenuRef}>
               {/* زر لوحة التحكم (يظهر فقط للمدير) */}
               {user?.role === 'admin' && (
                 <button onClick={() => setIsAdminOpen(true)} className="text-xs bg-green-600/20 border border-green-600/50 text-green-400 hover:bg-green-600/30 px-3 py-1.5 rounded-full flex items-center gap-1 transition-all">
@@ -538,17 +557,35 @@ export default function App() {
                 </button>
               )}
 
-              <div className="flex items-center gap-2 hover:text-purple-400 transition-colors cursor-pointer">
+              <div 
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} 
+                className="flex items-center gap-2 hover:text-purple-400 transition-colors cursor-pointer"
+              >
                 <User size={20} />
                 <span className="text-sm font-bold hidden md:block">{user.username}</span>
               </div>
               
               {/* Dropdown for Logout */}
-              <div className="absolute left-0 top-full mt-2 w-40 bg-[#151515] border border-white/10 rounded-xl shadow-xl overflow-hidden hidden group-hover:block z-[60]">
-                <button onClick={handleLogout} className="w-full text-right px-4 py-3 hover:bg-white/5 text-red-400 text-sm flex items-center gap-2">
-                  <LogOut size={16} /> تسجيل خروج
-                </button>
-              </div>
+              <AnimatePresence>
+                {isUserMenuOpen && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute left-0 top-full mt-2 w-40 bg-[#151515] border border-white/10 rounded-xl shadow-xl overflow-hidden z-[60]"
+                  >
+                    <button 
+                      onClick={() => {
+                        handleLogout();
+                        setIsUserMenuOpen(false);
+                      }} 
+                      className="w-full text-right px-4 py-3 hover:bg-white/5 text-red-400 text-sm flex items-center gap-2"
+                    >
+                      <LogOut size={16} /> تسجيل خروج
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           ) : (
             <button onClick={() => setIsAuthOpen(true)} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm font-bold transition-all">
