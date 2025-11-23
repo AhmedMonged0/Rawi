@@ -532,19 +532,19 @@ export default function App() {
 
 // داخل دالة App
 const handleLogout = () => {
-  // 1. تصفير الحالة
-  setUser(null);
-  setIsAdminOpen(false); // إغلاق لوحة التحكم إن كانت مفتوحة
-  
-  // 2. مسح التخزين المحلي بالكامل
+  // 1. إفراغ التخزين المحلي
   localStorage.removeItem('rawi_user');
   localStorage.removeItem('rawi_token');
-  
-  // 3. إظهار رسالة
+
+  // 2. تحديث الحالة (State) فوراً لتختفي العناصر من الواجهة
+  setUser(null);
+  setIsAdminOpen(false); // إغلاق لوحة التحكم إذا كانت مفتوحة
+
+  // 3. إظهار رسالة تأكيد
   addToast("تم تسجيل الخروج بنجاح");
   
-  // 4. (اختياري) إعادة تحميل الصفحة لضمان تنظيف الذاكرة
-  window.location.reload(); 
+  // 4. (اختياري ومهم) إعادة توجيه المستخدم للصفحة الرئيسية لتنظيف أي بقايا
+  window.location.href = "/"; 
 };
 
   return (
