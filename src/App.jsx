@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Helper: Gemini API ---
 const generateGeminiContent = async (prompt) => {
-  const apiKey = ""; 
+  const apiKey = "AIzaSyB6V8xJtkBK-8R4AmQpPA1O6L_v6-KDC18"; 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
   try {
     const response = await fetch(url, {
@@ -222,7 +222,7 @@ const ParticleBackground = () => {
   return <canvas ref={canvasRef} className="fixed top-0 left-0 w-full h-full pointer-events-none z-0 opacity-60" />;
 };
 
-// --- Auth Modal Component (Updated) ---
+// --- Auth Modal Component (Updated for Role) ---
 const AuthModal = ({ isOpen, onClose, onLoginSuccess, addToast }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({ username: '', email: '', password: '' });
@@ -241,15 +241,13 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, addToast }) => {
       });
       const data = await res.json();
       
-      console.log("DEBUG LOGIN RESPONSE:", data); // 🔍 هذا السطر سيظهر لك البيانات في الكونسول
-
       if (res.ok) {
         addToast(data.message);
         if (isLogin) {
           onLoginSuccess(data.user, data.token);
           onClose();
         } else {
-          setIsLogin(true);
+          setIsLogin(true); // Switch to login after signup
         }
       } else {
         addToast(data.message);
@@ -473,7 +471,7 @@ export default function App() {
   const [wishlist, setWishlist] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(false); // حالة لوحة التحكم
   const [user, setUser] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -481,16 +479,16 @@ export default function App() {
   const [selectedBook, setSelectedBook] = useState(null);
   const [showCheckout, setShowCheckout] = useState(false);
   const [toasts, setToasts] = useState([]);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const aboutSectionRef = useRef(null);
+  const userMenuRef = useRef(null);
 
   // Check for existing login on load
   useEffect(() => {
     const savedUser = localStorage.getItem('rawi_user');
     const savedToken = localStorage.getItem('rawi_token');
     if (savedUser && savedToken) {
-      const userData = JSON.parse(savedUser);
-      setUser(userData);
-      console.log("User loaded from storage:", userData); // 🔍
+      setUser(JSON.parse(savedUser));
     }
     
     // Inject Fonts
@@ -499,6 +497,23 @@ export default function App() {
     link.rel = "stylesheet";
     document.head.appendChild(link);
   }, []);
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    if (isUserMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isUserMenuOpen]);
 
   const addToast = (message) => { const id = Date.now(); setToasts(prev => [...prev, { id, message }]); setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000); };
   const addToCart = (book) => { if (!cart.find(item => item.id === book.id)) { setCart([...cart, book]); addToast(`تمت إضافة "${book.title}" للسلة`); } else { addToast(`"${book.title}" موجود بالفعل`); } };
@@ -510,20 +525,27 @@ export default function App() {
 
   // Auth Handlers
   const handleLoginSuccess = (userData, token) => {
-    console.log("Login Success, User Data:", userData); // 🔍 Debug
     setUser(userData);
     localStorage.setItem('rawi_user', JSON.stringify(userData));
     localStorage.setItem('rawi_token', token);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('rawi_user');
-    localStorage.removeItem('rawi_token');
-    setUser(null);
-    setIsAdminOpen(false);
-    addToast("تم تسجيل الخروج بنجاح");
-    window.location.href = "/"; // Force reload to clear state completely
-  };
+// داخل دالة App
+const handleLogout = () => {
+  // 1. إفراغ التخزين المحلي
+  localStorage.removeItem('rawi_user');
+  localStorage.removeItem('rawi_token');
+
+  // 2. تحديث الحالة (State) فوراً لتختفي العناصر من الواجهة
+  setUser(null);
+  setIsAdminOpen(false); // إغلاق لوحة التحكم إذا كانت مفتوحة
+
+  // 3. إظهار رسالة تأكيد
+  addToast("تم تسجيل الخروج بنجاح");
+  
+  // 4. (اختياري ومهم) إعادة توجيه المستخدم للصفحة الرئيسية لتنظيف أي بقايا
+  window.location.href = "/"; 
+};
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-['Tajawal'] selection:bg-purple-500/30 overflow-x-hidden" dir="rtl">
@@ -537,31 +559,43 @@ export default function App() {
           <button className="hover:text-purple-400 transition-colors hover:scale-110 active:scale-95 transform"><Globe size={20} /></button>
           
           {user ? (
-            <div className="relative group flex items-center gap-3">
-              
-              {/* 🔴 زر إدارة تجريبي (يظهر للجميع الآن للتأكد من عمل المكون) */}
-              <button onClick={() => setIsAdminOpen(true)} className="text-xs bg-yellow-600/20 border border-yellow-600/50 text-yellow-400 hover:bg-yellow-600/30 px-3 py-1.5 rounded-full flex items-center gap-1 transition-all">
-                <ShieldCheck size={14} /> إدارة (تجريبي)
-              </button>
-
-              {/* زر إدارة الحقيقي (يظهر فقط للأدمن) */}
+            <div className="relative flex items-center gap-3" ref={userMenuRef}>
+              {/* زر لوحة التحكم (يظهر فقط للمدير) */}
               {user?.role === 'admin' && (
                 <button onClick={() => setIsAdminOpen(true)} className="text-xs bg-green-600/20 border border-green-600/50 text-green-400 hover:bg-green-600/30 px-3 py-1.5 rounded-full flex items-center gap-1 transition-all">
                   <ShieldCheck size={14} /> إدارة
                 </button>
               )}
 
-              <div className="flex items-center gap-2 hover:text-purple-400 transition-colors cursor-pointer">
+              <div 
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} 
+                className="flex items-center gap-2 hover:text-purple-400 transition-colors cursor-pointer"
+              >
                 <User size={20} />
                 <span className="text-sm font-bold hidden md:block">{user.username}</span>
               </div>
               
               {/* Dropdown for Logout */}
-              <div className="absolute left-0 top-full mt-2 w-40 bg-[#151515] border border-white/10 rounded-xl shadow-xl overflow-hidden hidden group-hover:block z-[60]">
-                <button onClick={handleLogout} className="w-full text-right px-4 py-3 hover:bg-white/5 text-red-400 text-sm flex items-center gap-2">
-                  <LogOut size={16} /> تسجيل خروج
-                </button>
-              </div>
+              <AnimatePresence>
+                {isUserMenuOpen && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute left-0 top-full mt-2 w-40 bg-[#151515] border border-white/10 rounded-xl shadow-xl overflow-hidden z-[60]"
+                  >
+                    <button 
+                      onClick={() => {
+                        handleLogout();
+                        setIsUserMenuOpen(false);
+                      }} 
+                      className="w-full text-right px-4 py-3 hover:bg-white/5 text-red-400 text-sm flex items-center gap-2"
+                    >
+                      <LogOut size={16} /> تسجيل خروج
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           ) : (
             <button onClick={() => setIsAuthOpen(true)} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm font-bold transition-all">
