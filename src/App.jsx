@@ -2,12 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   ShoppingBag, Search, BookOpen, X, Star, ArrowRight, Heart, Menu, 
   Globe, Sparkles, MessageSquare, Send, Bot, Loader2, Check, 
-  CreditCard, Trash2, Mail, User, Phone, Code, Feather, Zap, LogIn, LogOut, UserPlus
+  CreditCard, Trash2, Mail, User, Phone, Code, Feather, Zap, LogIn, LogOut, UserPlus, ShieldCheck, Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Helper: Gemini API ---
-// (نفس كود الذكاء الاصطناعي السابق)
 const generateGeminiContent = async (prompt) => {
   const apiKey = "AIzaSyB6V8xJtkBK-8R4AmQpPA1O6L_v6-KDC18"; 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
@@ -26,7 +25,6 @@ const generateGeminiContent = async (prompt) => {
 };
 
 // --- Mock Data ---
-// (نفس بيانات الكتب السابقة)
 const books = [
   {
     id: 1,
@@ -122,7 +120,6 @@ const books = [
 
 // --- Components ---
 
-// (نفس المكونات السابقة: RawiLogo, SocialIcon, ClickRippleEffect, AmbientBackground, ParticleBackground)
 const RawiLogo = () => (
   <div className="flex items-center gap-3 group cursor-pointer">
     <div className="relative w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(124,58,237,0.4)] overflow-hidden transition-transform group-hover:scale-110">
@@ -225,7 +222,7 @@ const ParticleBackground = () => {
   return <canvas ref={canvasRef} className="fixed top-0 left-0 w-full h-full pointer-events-none z-0 opacity-60" />;
 };
 
-// --- Auth Modal Component (NEW) ---
+// --- Auth Modal Component (Updated for Role) ---
 const AuthModal = ({ isOpen, onClose, onLoginSuccess, addToast }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({ username: '', email: '', password: '' });
@@ -309,8 +306,85 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, addToast }) => {
   );
 };
 
-// --- Other Components (ToastContainer, BookDetailsModal, CheckoutModal, AILibrarianWidget) ---
-// (نفس الكود السابق دون تغيير)
+// --- Admin Dashboard Component (NEW) ---
+const AdminDashboard = ({ isOpen, onClose, token }) => {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetch('/api/admin/users', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      .then(res => res.json())
+      .then(data => {
+        setUsers(data);
+        setLoading(false);
+      })
+      .catch(err => console.error(err));
+    }
+  }, [isOpen, token]);
+
+  if (!isOpen) return null;
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/95 p-6 overflow-auto flex items-center justify-center">
+      <div className="w-full max-w-5xl bg-[#111] border border-white/10 rounded-2xl p-8 relative max-h-[90vh] overflow-y-auto custom-scrollbar">
+        <button onClick={onClose} className="absolute top-4 left-4 text-gray-400 hover:text-white"><X /></button>
+        
+        <div className="flex justify-between items-center mb-8">
+          <h2 className="text-3xl font-bold text-white flex items-center gap-2">
+            <ShieldCheck className="text-green-500" /> لوحة التحكم
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-[#1a1a1a] p-6 rounded-2xl border border-white/10 flex items-center gap-4">
+            <div className="p-3 bg-blue-500/20 rounded-full text-blue-400"><Users size={24} /></div>
+            <div>
+              <h3 className="text-gray-400 text-sm">المستخدمين</h3>
+              <p className="text-2xl font-bold text-white">{users.length}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-[#1a1a1a] rounded-2xl border border-white/10 overflow-hidden">
+          <table className="w-full text-right text-sm text-gray-300">
+            <thead className="bg-white/5 text-gray-400">
+              <tr>
+                <th className="p-4">ID</th>
+                <th className="p-4">الاسم</th>
+                <th className="p-4">البريد</th>
+                <th className="p-4">الصلاحية</th>
+                <th className="p-4">التاريخ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan="5" className="p-8 text-center"><Loader2 className="animate-spin mx-auto" /></td></tr>
+              ) : (
+                users.map(u => (
+                  <tr key={u.id} className="border-b border-white/5 hover:bg-white/5">
+                    <td className="p-4">#{u.id}</td>
+                    <td className="p-4 font-bold text-white">{u.username}</td>
+                    <td className="p-4">{u.email}</td>
+                    <td className="p-4">
+                      <span className={`px-2 py-1 rounded text-xs ${u.role === 'admin' ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                        {u.role}
+                      </span>
+                    </td>
+                    <td className="p-4">{new Date(u.created_at).toLocaleDateString('ar-EG')}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 const ToastContainer = ({ toasts }) => (
   <div className="fixed top-24 left-6 z-[100] flex flex-col gap-2 pointer-events-none">
     <AnimatePresence>{toasts.map((toast) => (<motion.div key={toast.id} initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} className="bg-white text-black px-4 py-3 rounded-lg shadow-2xl border-r-4 border-purple-500 flex items-center gap-3 min-w-[250px] pointer-events-auto"><div className="bg-green-100 p-1 rounded-full text-green-600"><Check size={16} /></div><span className="text-sm font-bold">{toast.message}</span></motion.div>))}</AnimatePresence>
@@ -396,8 +470,9 @@ export default function App() {
   const [cart, setCart] = useState([]);
   const [wishlist, setWishlist] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isAuthOpen, setIsAuthOpen] = useState(false); // للتحكم في نافذة الدخول
-  const [user, setUser] = useState(null); // بيانات المستخدم
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(false); // حالة لوحة التحكم
+  const [user, setUser] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("الكل");
@@ -455,13 +530,21 @@ export default function App() {
           <button className="hover:text-purple-400 transition-colors hover:scale-110 active:scale-95 transform"><Globe size={20} /></button>
           
           {user ? (
-            <div className="relative group">
-              <button className="flex items-center gap-2 hover:text-purple-400 transition-colors">
+            <div className="relative group flex items-center gap-3">
+              {/* زر لوحة التحكم (يظهر فقط للمدير) */}
+              {user?.role === 'admin' && (
+                <button onClick={() => setIsAdminOpen(true)} className="text-xs bg-green-600/20 border border-green-600/50 text-green-400 hover:bg-green-600/30 px-3 py-1.5 rounded-full flex items-center gap-1 transition-all">
+                  <ShieldCheck size={14} /> إدارة
+                </button>
+              )}
+
+              <div className="flex items-center gap-2 hover:text-purple-400 transition-colors cursor-pointer">
                 <User size={20} />
                 <span className="text-sm font-bold hidden md:block">{user.username}</span>
-              </button>
+              </div>
+              
               {/* Dropdown for Logout */}
-              <div className="absolute left-0 top-full mt-2 w-40 bg-[#151515] border border-white/10 rounded-xl shadow-xl overflow-hidden hidden group-hover:block">
+              <div className="absolute left-0 top-full mt-2 w-40 bg-[#151515] border border-white/10 rounded-xl shadow-xl overflow-hidden hidden group-hover:block z-[60]">
                 <button onClick={handleLogout} className="w-full text-right px-4 py-3 hover:bg-white/5 text-red-400 text-sm flex items-center gap-2">
                   <LogOut size={16} /> تسجيل خروج
                 </button>
@@ -474,10 +557,11 @@ export default function App() {
           )}
 
           <button className="hover:text-purple-400 transition-colors hover:scale-110 active:scale-95 transform relative" onClick={() => setIsCartOpen(true)}><ShoppingBag size={22} />{cart.length > 0 && <span className="absolute -top-2 -right-2 bg-purple-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-[#0a0a0a]">{cart.length}</span>}</button>
+          <button className="md:hidden" onClick={() => setIsMenuOpen(!isMenuOpen)}><Menu size={24} /></button>
         </div>
       </nav>
 
-      {/* Hero - Updated Design */}
+      {/* Hero */}
       <section className="relative pt-32 pb-20 px-6 min-h-screen flex items-center overflow-hidden">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
           <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8 }}>
@@ -498,7 +582,7 @@ export default function App() {
         </div>
       </section>
 
-      {/* Books Grid - Updated Cards */}
+      {/* Books Grid */}
       <section id="books-section" className="py-20 px-6 relative z-10">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center mb-12 gap-6">
@@ -548,6 +632,7 @@ export default function App() {
         {selectedBook && <BookDetailsModal book={selectedBook} onClose={() => setSelectedBook(null)} onAddToCart={(b) => { addToCart(b); setSelectedBook(null); }} onAddWishlist={toggleWishlist} />}
         {showCheckout && <CheckoutModal cart={cart} total={total} onClose={() => setShowCheckout(false)} onClearCart={() => setCart([])} />}
         <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} onLoginSuccess={handleLoginSuccess} addToast={addToast} />
+        <AdminDashboard isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} token={localStorage.getItem('rawi_token')} />
       </AnimatePresence>
 
       <AILibrarianWidget />
