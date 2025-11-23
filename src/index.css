@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* تخصيص شريط التمرير */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #111; 
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #444; 
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #fbbf24; 
+}
+
+body {
+    font-family: 'Tajawal', sans-serif;
+}
