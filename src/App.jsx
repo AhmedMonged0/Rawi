@@ -2,15 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   ShoppingBag, Search, BookOpen, X, Star, ArrowRight, Heart, Menu, 
   Globe, Sparkles, MessageSquare, Send, Bot, Loader2, Check, 
-  CreditCard, Trash2, Mail, User, Phone, Code, Feather, Zap
+  CreditCard, Trash2, Mail, User, Phone, Code, Feather, Zap, LogIn, LogOut, UserPlus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Helper: Gemini API ---
+// (نفس كود الذكاء الاصطناعي السابق)
 const generateGeminiContent = async (prompt) => {
-  const apiKey = "AIzaSyB6V8xJtkBK-8R4AmQpPA1O6L_v6-KDC18"; // 🔴 ضع مفتاح API هنا
+  const apiKey = "AIzaSyB6V8xJtkBK-8R4AmQpPA1O6L_v6-KDC18"; 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-
   try {
     const response = await fetch(url, {
       method: 'POST',
@@ -25,7 +25,8 @@ const generateGeminiContent = async (prompt) => {
   }
 };
 
-// --- Mock Data: تم استبدال الكتب بكتب التصميم السابق مع إضافة بيانات للتوافق ---
+// --- Mock Data ---
+// (نفس بيانات الكتب السابقة)
 const books = [
   {
     id: 1,
@@ -119,9 +120,9 @@ const books = [
   }
 ];
 
-// --- Custom Components & Icons ---
+// --- Components ---
 
-// Logo Component - Updated Colors
+// (نفس المكونات السابقة: RawiLogo, SocialIcon, ClickRippleEffect, AmbientBackground, ParticleBackground)
 const RawiLogo = () => (
   <div className="flex items-center gap-3 group cursor-pointer">
     <div className="relative w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(124,58,237,0.4)] overflow-hidden transition-transform group-hover:scale-110">
@@ -144,13 +145,10 @@ const SocialIcon = ({ type }) => {
     whatsapp: "M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
   };
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none">
-      <path d={paths[type]} />
-    </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none"><path d={paths[type]} /></svg>
   );
 };
 
-// 1. Click Ripple Effect - Updated Colors
 const ClickRippleEffect = () => {
   const [ripples, setRipples] = useState([]);
   useEffect(() => {
@@ -174,7 +172,6 @@ const ClickRippleEffect = () => {
   );
 };
 
-// 2. Ambient Background - Updated Colors
 const AmbientBackground = () => (
   <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10 bg-[#050505]">
     <motion.div animate={{ x: [0, 100, -50, 0], y: [0, -50, 50, 0], scale: [1, 1.2, 0.9, 1] }} transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }} className="absolute top-[-10%] left-[-10%] w-[700px] h-[700px] bg-purple-600/20 rounded-full blur-[128px] -z-10" />
@@ -182,7 +179,6 @@ const AmbientBackground = () => (
   </div>
 );
 
-// 3. Advanced Particle Background
 const ParticleBackground = () => {
   const canvasRef = useRef(null);
   useEffect(() => {
@@ -229,61 +225,92 @@ const ParticleBackground = () => {
   return <canvas ref={canvasRef} className="fixed top-0 left-0 w-full h-full pointer-events-none z-0 opacity-60" />;
 };
 
-// 4. AI Librarian Widget - Updated Colors
-const AILibrarianWidget = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState([
-    { role: 'bot', text: 'أهلاً بك في راوي! 🪶 أنا مساعدك الذكي. كيف يمكنني إلهامك اليوم؟' }
-  ]);
-  const [input, setInput] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-  const messagesEndRef = useRef(null);
+// --- Auth Modal Component (NEW) ---
+const AuthModal = ({ isOpen, onClose, onLoginSuccess, addToast }) => {
+  const [isLogin, setIsLogin] = useState(true);
+  const [formData, setFormData] = useState({ username: '', email: '', password: '' });
+  const [isLoading, setIsLoading] = useState(false);
 
-  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  useEffect(scrollToBottom, [messages]);
-
-  const handleSend = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!input.trim()) return;
-    const userMsg = input;
-    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
-    setInput("");
-    setIsTyping(true);
-    const context = `أنت "راوي"، أمين مكتبة ذكي ومثقف في موقع "راوي" لبيع الكتب. أنت تتحدث بأسلوب فصيح وراقٍ. ساعد الزوار في اختيار الكتب.`;
-    const prompt = `${context}\n\nالمستخدم: ${userMsg}\nراوي:`;
-    const reply = await generateGeminiContent(prompt);
-    setMessages(prev => [...prev, { role: 'bot', text: reply }]);
-    setIsTyping(false);
+    setIsLoading(true);
+    const endpoint = isLogin ? '/api/auth/login' : '/api/auth/signup';
+    
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      const data = await res.json();
+      
+      if (res.ok) {
+        addToast(data.message);
+        if (isLogin) {
+          onLoginSuccess(data.user, data.token);
+          onClose();
+        } else {
+          setIsLogin(true); // Switch to login after signup
+        }
+      } else {
+        addToast(data.message);
+      }
+    } catch (error) {
+      addToast("حدث خطأ في الاتصال بالسيرفر");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed bottom-6 left-6 z-[90] flex flex-col items-start font-sans">
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.95 }} className="mb-4 w-80 md:w-96 bg-[#111] border border-purple-500/30 rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[400px]">
-            <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 flex justify-between items-center"><div className="flex items-center gap-2 text-white font-bold"><Bot size={20} /><span>الراوي الذكي</span></div><button onClick={() => setIsOpen(false)} className="text-white/80 hover:text-white"><X size={18} /></button></div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-black/40 custom-scrollbar">
-              {messages.map((msg, idx) => (
-                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] p-3 rounded-2xl text-sm ${msg.role === 'user' ? 'bg-purple-600 text-white rounded-br-none' : 'bg-white/10 text-gray-200 rounded-bl-none'}`}>{msg.text}</div>
-                </div>
-              ))}
-              {isTyping && <div className="flex justify-start"><div className="bg-white/10 p-3 rounded-2xl rounded-bl-none flex gap-1 items-center"><span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span><span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></span><span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span></div></div>}
-              <div ref={messagesEndRef} />
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-[#151515] border border-purple-500/30 w-full max-w-md rounded-2xl p-8 relative shadow-2xl">
+        <button onClick={onClose} className="absolute top-4 left-4 text-gray-400 hover:text-white"><X /></button>
+        
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold text-white mb-2">{isLogin ? 'أهلاً بعودتك' : 'انضم لعائلة راوي'}</h2>
+          <p className="text-gray-400 text-sm">بوابتك نحو المعرفة والمستقبل</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {!isLogin && (
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">الاسم</label>
+              <input type="text" required className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-purple-500 outline-none" 
+                value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} />
             </div>
-            <form onSubmit={handleSend} className="p-3 bg-[#1a1a1a] border-t border-white/5 flex gap-2"><input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder="اسأل الراوي..." className="flex-1 bg-black border border-white/10 rounded-full px-4 py-2 text-sm text-white focus:border-purple-500 outline-none" /><button type="submit" disabled={!input.trim() || isTyping} className="bg-purple-600 text-white p-2 rounded-full hover:bg-purple-500 disabled:opacity-50 transition-colors"><Send size={18} /></button></form>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => setIsOpen(!isOpen)} className="w-14 h-14 bg-gradient-to-tr from-purple-600 to-blue-600 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(147,51,234,0.4)] text-white z-50 relative group">
-        {isOpen ? <X size={28} /> : <MessageSquare size={28} />}
-        <span className="absolute left-full ml-3 bg-white text-black text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">تحدث مع الراوي</span>
-      </motion.button>
-    </div>
+          )}
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">البريد الإلكتروني</label>
+            <input type="email" required className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-purple-500 outline-none" 
+              value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">كلمة المرور</label>
+            <input type="password" required className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-purple-500 outline-none" 
+              value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+          </div>
+
+          <button disabled={isLoading} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 py-3 rounded-lg font-bold text-white hover:opacity-90 transition-opacity flex justify-center items-center gap-2 mt-4">
+            {isLoading ? <Loader2 className="animate-spin" /> : (isLogin ? 'دخول' : 'إنشاء حساب')}
+          </button>
+        </form>
+
+        <div className="mt-6 text-center text-sm text-gray-400">
+          {isLogin ? "ليس لديك حساب؟" : "لديك حساب بالفعل؟"}
+          <button onClick={() => setIsLogin(!isLogin)} className="text-purple-400 font-bold mr-2 hover:underline">
+            {isLogin ? "أنشئ حساباً" : "سجل دخول"}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 };
 
-// 5. Toast & Modal Components - Updated Colors
+// --- Other Components (ToastContainer, BookDetailsModal, CheckoutModal, AILibrarianWidget) ---
+// (نفس الكود السابق دون تغيير)
 const ToastContainer = ({ toasts }) => (
   <div className="fixed top-24 left-6 z-[100] flex flex-col gap-2 pointer-events-none">
     <AnimatePresence>{toasts.map((toast) => (<motion.div key={toast.id} initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} className="bg-white text-black px-4 py-3 rounded-lg shadow-2xl border-r-4 border-purple-500 flex items-center gap-3 min-w-[250px] pointer-events-auto"><div className="bg-green-100 p-1 rounded-full text-green-600"><Check size={16} /></div><span className="text-sm font-bold">{toast.message}</span></motion.div>))}</AnimatePresence>
@@ -327,11 +354,50 @@ const CheckoutModal = ({ cart, total, onClose, onClearCart }) => {
   );
 };
 
-// 6. Main App
+const AILibrarianWidget = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState([{ role: 'bot', text: 'أهلاً بك في راوي! 🪶 أنا مساعدك الذكي. كيف يمكنني إلهامك اليوم؟' }]);
+  const [input, setInput] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const messagesEndRef = useRef(null);
+  useEffect(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), [messages]);
+  const handleSend = async (e) => {
+    e.preventDefault(); if (!input.trim()) return;
+    const userMsg = input; setMessages(prev => [...prev, { role: 'user', text: userMsg }]); setInput(""); setIsTyping(true);
+    const context = `أنت "راوي"، أمين مكتبة ذكي ومثقف في موقع "راوي". ساعد الزوار في اختيار الكتب.`;
+    const prompt = `${context}\n\nالمستخدم: ${userMsg}\nراوي:`;
+    const reply = await generateGeminiContent(prompt);
+    setMessages(prev => [...prev, { role: 'bot', text: reply }]); setIsTyping(false);
+  };
+  return (
+    <div className="fixed bottom-6 left-6 z-[90] flex flex-col items-start font-sans">
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.95 }} className="mb-4 w-80 md:w-96 bg-[#111] border border-purple-500/30 rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[400px]">
+            <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 flex justify-between items-center"><div className="flex items-center gap-2 text-white font-bold"><Bot size={20} /><span>الراوي الذكي</span></div><button onClick={() => setIsOpen(false)} className="text-white/80 hover:text-white"><X size={18} /></button></div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-black/40 custom-scrollbar">
+              {messages.map((msg, idx) => (<div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[85%] p-3 rounded-2xl text-sm ${msg.role === 'user' ? 'bg-purple-600 text-white rounded-br-none' : 'bg-white/10 text-gray-200 rounded-bl-none'}`}>{msg.text}</div></div>))}
+              {isTyping && <div className="flex justify-start"><div className="bg-white/10 p-3 rounded-2xl rounded-bl-none flex gap-1 items-center"><span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span><span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></span><span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></span></div></div>}
+              <div ref={messagesEndRef} />
+            </div>
+            <form onSubmit={handleSend} className="p-3 bg-[#1a1a1a] border-t border-white/5 flex gap-2"><input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder="اسأل الراوي..." className="flex-1 bg-black border border-white/10 rounded-full px-4 py-2 text-sm text-white focus:border-purple-500 outline-none" /><button type="submit" disabled={!input.trim() || isTyping} className="bg-purple-600 text-white p-2 rounded-full hover:bg-purple-500 disabled:opacity-50 transition-colors"><Send size={18} /></button></form>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => setIsOpen(!isOpen)} className="w-14 h-14 bg-gradient-to-tr from-purple-600 to-blue-600 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(147,51,234,0.4)] text-white z-50 relative group">
+        {isOpen ? <X size={28} /> : <MessageSquare size={28} />}
+      </motion.button>
+    </div>
+  );
+};
+
+// --- Main App ---
 export default function App() {
   const [cart, setCart] = useState([]);
   const [wishlist, setWishlist] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false); // للتحكم في نافذة الدخول
+  const [user, setUser] = useState(null); // بيانات المستخدم
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("الكل");
@@ -340,8 +406,15 @@ export default function App() {
   const [toasts, setToasts] = useState([]);
   const aboutSectionRef = useRef(null);
 
-  // Inject Fonts dynamically
+  // Check for existing login on load
   useEffect(() => {
+    const savedUser = localStorage.getItem('rawi_user');
+    const savedToken = localStorage.getItem('rawi_token');
+    if (savedUser && savedToken) {
+      setUser(JSON.parse(savedUser));
+    }
+    
+    // Inject Fonts
     const link = document.createElement('link');
     link.href = "https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap";
     link.rel = "stylesheet";
@@ -356,11 +429,22 @@ export default function App() {
   const filteredBooks = books.filter(book => (activeCategory === "الكل" || book.category === activeCategory) && (book.title.includes(searchQuery) || book.author.includes(searchQuery)));
   const total = cart.reduce((sum, item) => sum + item.price, 0);
 
+  // Auth Handlers
+  const handleLoginSuccess = (userData, token) => {
+    setUser(userData);
+    localStorage.setItem('rawi_user', JSON.stringify(userData));
+    localStorage.setItem('rawi_token', token);
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('rawi_user');
+    localStorage.removeItem('rawi_token');
+    addToast("تم تسجيل الخروج بنجاح");
+  };
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-['Tajawal'] selection:bg-purple-500/30 overflow-x-hidden" dir="rtl">
-      <ClickRippleEffect />
-      <AmbientBackground />
-      <ParticleBackground />
       <ToastContainer toasts={toasts} />
       
       {/* Navbar */}
@@ -369,9 +453,27 @@ export default function App() {
         <div className="flex-1 max-w-lg mx-4 md:mx-8"><div className="relative group"><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="ابحث عن قصة..." className="w-full bg-white/5 border border-white/10 rounded-full py-2 px-10 text-white focus:outline-none focus:border-purple-500/50 focus:bg-black/50 transition-all" /><Search className="absolute right-3 top-2.5 text-gray-400 group-focus-within:text-purple-400 transition-colors" size={18} />{searchQuery && <button onClick={() => setSearchQuery("")} className="absolute left-3 top-2.5 text-gray-500 hover:text-white"><X size={16}/></button>}</div></div>
         <div className="flex items-center gap-3 md:gap-5 text-white">
           <button className="hover:text-purple-400 transition-colors hover:scale-110 active:scale-95 transform"><Globe size={20} /></button>
-          <button className="hover:text-red-500 transition-colors hidden md:block hover:scale-110 active:scale-95 transform"><Heart size={22} className={wishlist.length > 0 ? "fill-red-500 text-red-500" : ""} />{wishlist.length > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-ping"></span>}</button>
+          
+          {user ? (
+            <div className="relative group">
+              <button className="flex items-center gap-2 hover:text-purple-400 transition-colors">
+                <User size={20} />
+                <span className="text-sm font-bold hidden md:block">{user.username}</span>
+              </button>
+              {/* Dropdown for Logout */}
+              <div className="absolute left-0 top-full mt-2 w-40 bg-[#151515] border border-white/10 rounded-xl shadow-xl overflow-hidden hidden group-hover:block">
+                <button onClick={handleLogout} className="w-full text-right px-4 py-3 hover:bg-white/5 text-red-400 text-sm flex items-center gap-2">
+                  <LogOut size={16} /> تسجيل خروج
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setIsAuthOpen(true)} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm font-bold transition-all">
+              <LogIn size={16} /> <span>دخول</span>
+            </button>
+          )}
+
           <button className="hover:text-purple-400 transition-colors hover:scale-110 active:scale-95 transform relative" onClick={() => setIsCartOpen(true)}><ShoppingBag size={22} />{cart.length > 0 && <span className="absolute -top-2 -right-2 bg-purple-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-[#0a0a0a]">{cart.length}</span>}</button>
-          <button className="md:hidden" onClick={() => setIsMenuOpen(!isMenuOpen)}><Menu size={24} /></button>
         </div>
       </nav>
 
@@ -445,6 +547,7 @@ export default function App() {
         {isCartOpen && <motion.div initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }} className="fixed top-0 left-0 h-full w-full max-w-md bg-[#0f0f0f] border-r border-white/10 z-[70] p-6 flex flex-col shadow-2xl"><div className="flex justify-between items-center mb-6 pb-4 border-b border-white/10"><h2 className="text-2xl font-bold text-white flex gap-2 items-center"><ShoppingBag className="text-purple-500" /> حقيبة الراوي <span className="text-gray-400 text-lg">({cart.length})</span></h2><button onClick={() => setIsCartOpen(false)} className="text-white"><X /></button></div><div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-2">{cart.length === 0 ? <div className="flex flex-col items-center justify-center h-full text-gray-500 gap-4"><ShoppingBag className="w-16 h-16 opacity-20" /><p>الحقيبة فارغة، أضف بعض الحكايات.</p></div> : cart.map((item, idx) => (<motion.div layout key={`${item.id}-${idx}`} className="flex gap-4 bg-white/5 p-3 rounded-2xl border border-white/5 relative"><img src={item.image} className="w-16 h-20 object-cover rounded-xl" alt={item.title}/><div className="flex-1 flex flex-col justify-between"><div><h4 className="font-bold text-sm text-white">{item.title}</h4><p className="text-xs text-gray-400">{item.author}</p></div><div className="flex justify-between items-center"><span className="text-purple-400 font-bold">{item.price} ر.س</span><button onClick={() => removeFromCart(item.id)} className="text-red-400 hover:text-red-300 text-xs">حذف</button></div></div></motion.div>))}</div><div className="mt-6 pt-6 border-t border-white/10"><div className="flex justify-between text-xl font-bold text-white mb-4"><span>الإجمالي</span><span>{total} ر.س</span></div><button onClick={() => { setIsCartOpen(false); setShowCheckout(true); }} disabled={cart.length === 0} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 rounded-xl font-bold hover:opacity-90 disabled:opacity-50 shadow-lg shadow-purple-900/30">إتمام الشراء</button></div></motion.div>}
         {selectedBook && <BookDetailsModal book={selectedBook} onClose={() => setSelectedBook(null)} onAddToCart={(b) => { addToCart(b); setSelectedBook(null); }} onAddWishlist={toggleWishlist} />}
         {showCheckout && <CheckoutModal cart={cart} total={total} onClose={() => setShowCheckout(false)} onClearCart={() => setCart([])} />}
+        <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} onLoginSuccess={handleLoginSuccess} addToast={addToast} />
       </AnimatePresence>
 
       <AILibrarianWidget />
