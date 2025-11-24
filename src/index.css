@@ -20,3 +20,17 @@
 body {
     font-family: 'Tajawal', sans-serif;
 }
+
+/* تحسينات لتأثير 3D */
+* {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* تحسين الأداء للتحولات 3D */
+[style*="transform-style: preserve-3d"],
+[style*="perspective"] {
+    will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}

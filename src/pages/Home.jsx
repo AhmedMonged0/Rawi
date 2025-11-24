@@ -197,6 +197,161 @@ const ParticleBackground = () => {
     return <canvas ref={canvasRef} className="fixed top-0 left-0 w-full h-full -z-10 bg-[#050505]" />;
 };
 
+// 3D Background Component - تأثير بسيط وواضح
+const Background3D = () => {
+    const canvasRef = useRef(null);
+    const animationFrameRef = useRef(null);
+    const mouseRef = useRef({ x: 0, y: 0 });
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        const particleCount = 60;
+
+        const resizeCanvas = () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            initParticles();
+        };
+
+        const initParticles = () => {
+            particles = [];
+            for (let i = 0; i < particleCount; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    z: Math.random() * 1000,
+                    size: Math.random() * 2 + 1,
+                    speed: Math.random() * 0.3 + 0.05,
+                    color: Math.random() > 0.5 ? 'rgba(147, 51, 234, 0.6)' : 'rgba(59, 130, 246, 0.6)',
+                });
+            }
+        };
+
+        const drawParticle = (p) => {
+            const scale = 600 / (600 + p.z);
+            const x = (p.x - canvas.width / 2) * scale + canvas.width / 2;
+            const y = (p.y - canvas.height / 2) * scale + canvas.height / 2;
+            const size = p.size * scale;
+
+            // Draw particle with subtle glow
+            ctx.beginPath();
+            ctx.arc(x, y, size, 0, Math.PI * 2);
+            ctx.fillStyle = p.color;
+            ctx.fill();
+            
+            // Subtle glow
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = p.color;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        };
+
+        const connectParticles = () => {
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    // Connect nearby particles like cells
+                    if (distance < 120) {
+                        const scale1 = 600 / (600 + particles[i].z);
+                        const scale2 = 600 / (600 + particles[j].z);
+                        const x1 = (particles[i].x - canvas.width / 2) * scale1 + canvas.width / 2;
+                        const y1 = (particles[i].y - canvas.height / 2) * scale1 + canvas.height / 2;
+                        const x2 = (particles[j].x - canvas.width / 2) * scale2 + canvas.width / 2;
+                        const y2 = (particles[j].y - canvas.height / 2) * scale2 + canvas.height / 2;
+                        
+                        // Calculate opacity based on distance
+                        const opacity = 0.3 * (1 - distance / 120);
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(x1, y1);
+                        ctx.lineTo(x2, y2);
+                        ctx.strokeStyle = `rgba(147, 51, 234, ${opacity})`;
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                    }
+                }
+            }
+        };
+
+        const animate = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Mouse interaction
+            const mouseX = mouseRef.current.x;
+            const mouseY = mouseRef.current.y;
+            
+            particles.forEach((p) => {
+                // Move particles
+                p.z -= p.speed;
+                if (p.z <= 0) {
+                    p.z = 1000;
+                    p.x = Math.random() * canvas.width;
+                    p.y = Math.random() * canvas.height;
+                }
+                
+                // Mouse interaction - subtle
+                if (mouseX && mouseY) {
+                    const dx = mouseX - p.x;
+                    const dy = mouseY - p.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < 150) {
+                        p.x += (dx / distance) * 0.2;
+                        p.y += (dy / distance) * 0.2;
+                    }
+                }
+            });
+            
+            connectParticles();
+            particles.forEach(drawParticle);
+            
+            animationFrameRef.current = requestAnimationFrame(animate);
+        };
+
+        const handleMouseMove = (e) => {
+            mouseRef.current.x = e.clientX;
+            mouseRef.current.y = e.clientY;
+        };
+
+        const handleMouseLeave = () => {
+            mouseRef.current.x = 0;
+            mouseRef.current.y = 0;
+        };
+
+        resizeCanvas();
+        animate();
+        
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseleave', handleMouseLeave);
+
+        return () => {
+            window.removeEventListener('resize', resizeCanvas);
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseleave', handleMouseLeave);
+            if (animationFrameRef.current) {
+                cancelAnimationFrame(animationFrameRef.current);
+            }
+        };
+    }, []);
+
+    return (
+        <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 bg-[#0a0a0a]">
+            {/* 3D Particles Canvas - شبكة الخلايا */}
+            <canvas 
+                ref={canvasRef} 
+                className="absolute inset-0 w-full h-full"
+            />
+        </div>
+    );
+};
+
 // --- Auth Modal ---
 const AuthModal = ({ isOpen, onClose, onLoginSuccess, addToast }) => {
     const [isLogin, setIsLogin] = useState(true);
@@ -520,7 +675,9 @@ export default function Home() {
     };
 
     return (
-        <div className="min-h-screen bg-[#0a0a0a] text-white font-['Tajawal'] selection:bg-purple-500/30 overflow-x-hidden" dir="rtl">
+        <div className="min-h-screen text-white font-['Tajawal'] selection:bg-purple-500/30 overflow-x-hidden relative" style={{ background: '#0a0a0a' }} dir="rtl">
+            <Background3D />
+            <div className="relative z-10">
             <ToastContainer toasts={toasts} />
 
             {/* Navbar */}
@@ -681,6 +838,7 @@ export default function Home() {
                 </div>
                 <div className="text-center text-gray-600 text-xs border-t border-white/5 pt-8">© 2024 راوي - جميع الحقوق محفوظة. تطوير Ahmed Monged.</div>
             </footer>
+            </div>
         </div>
     );
 }
