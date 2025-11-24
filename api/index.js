@@ -76,37 +76,20 @@ app.get('/api/init-db', async (req, res) => {
     const { rows: adminRows } = await db.query("SELECT * FROM users WHERE username = 'admin'");
     let adminStatus = '';
 
-    if (adminRows.length === 0) {
-      await db.query(
-        'INSERT INTO users (username, email, password_hash, role) VALUES ($1, $2, $3, $4)',
-        ['admin', 'admin@rawi.com', adminPasswordHash, 'admin']
-      );
-      adminStatus = 'Admin user CREATED';
-    } else {
-      await db.query(
-        'UPDATE users SET password_hash = $1, role = $2 WHERE username = $4',
-        [adminPasswordHash, 'admin', 'admin']
-      );
-      adminStatus = 'Admin user UPDATED';
-    }
-
-    // جدول الكتب
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS books (
         id SERIAL PRIMARY KEY,
-        title VARCHAR(255) NOT NULL,
+      title VARCHAR(255) NOT NULL,
         author VARCHAR(255) NOT NULL,
-        price DECIMAL(10, 2) NOT NULL,
-        category VARCHAR(100),
-        description TEXT,
-        image_url VARCHAR(500),
-        rating DECIMAL(3, 1) DEFAULT 0.0,
-        pages INT,
-        language VARCHAR(50) DEFAULT 'العربية',
-        is_new BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          price DECIMAL(10, 2) NOT NULL,
+            category VARCHAR(100),
+              description TEXT,
+                image_url VARCHAR(500),
+                  rating DECIMAL(3, 1) DEFAULT 0.0,
+                    pages INT,
+                      language VARCHAR(50) DEFAULT 'العربية',
+                        is_new BOOLEAN DEFAULT FALSE,
+                          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-    `);
+`);
 
     // إضافة كتب افتراضية
     const { rows } = await db.query('SELECT count(*) as count FROM books');
@@ -184,8 +167,8 @@ app.post('/api/auth/signup', async (req, res) => {
       from: '"Rawi Bookstore" <ahmdmnjd806@gmail.com>',
       to: email,
       subject: 'كود تفعيل حسابك في راوي',
-      text: `أهلاً بك في راوي! كود التفعيل الخاص بك هو: ${verificationCode}`,
-      html: `<h3>أهلاً بك في راوي! 📚</h3><p>كود التفعيل الخاص بك هو:</p><h2>${verificationCode}</h2>`
+      text: `أهلاً بك في راوي! كود التفعيل الخاص بك هو: ${ verificationCode } `,
+      html: `< h3 > أهلاً بك في راوي! 📚</h3 ><p>كود التفعيل الخاص بك هو:</p><h2>${verificationCode}</h2>`
     };
 
     // 2. التحقق من وجوده في المعلقين (Pending)
@@ -208,7 +191,7 @@ app.post('/api/auth/signup', async (req, res) => {
     // إرسال الإيميل
     try {
       await transporter.sendMail(mailOptions);
-      console.log(`Verification email sent to ${email}`);
+      console.log(`Verification email sent to ${ email } `);
     } catch (emailError) {
       console.error("Email sending failed:", emailError);
       return res.status(500).json({ message: "فشل إرسال البريد الإلكتروني. يرجى المحاولة لاحقاً." });
@@ -318,31 +301,31 @@ app.post('/api/chat', async (req, res) => {
   const apiKey = "AIzaSyB_Rsb4xsxIjOgKYvRHwdkhYrLU0rB0HVE";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{ text: `أنت "راوي"، أمين مكتبة ذكي ومثقف في موقع "راوي". ساعد الزوار في اختيار الكتب. اجابتك يجب أن تكون قصيرة ومفيدة.\n\nالمستخدم: ${message}\nراوي:` }]
-        }]
-      })
-    });
+try {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{
+        parts: [{ text: `أنت "راوي"، أمين مكتبة ذكي ومثقف في موقع "راوي". ساعد الزوار في اختيار الكتب. اجابتك يجب أن تكون قصيرة ومفيدة.\n\nالمستخدم: ${message}\nراوي:` }]
+      }]
+    })
+  });
 
-    if (!response.ok) {
-      const errData = await response.json();
-      console.error("Gemini Backend Error:", errData);
-      return res.status(response.status).json({ message: "فشل الاتصال بالذكاء الاصطناعي" });
-    }
-
-    const data = await response.json();
-    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "عذراً، لم أستطع فهم ذلك.";
-    res.json({ reply });
-
-  } catch (error) {
-    console.error("Chat Server Error:", error);
-    res.status(500).json({ message: "حدث خطأ في الخادم" });
+  if (!response.ok) {
+    const errData = await response.json();
+    console.error("Gemini Backend Error:", errData);
+    return res.status(response.status).json({ message: "فشل الاتصال بالذكاء الاصطناعي" });
   }
+
+  const data = await response.json();
+  const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "عذراً، لم أستطع فهم ذلك.";
+  res.json({ reply });
+
+} catch (error) {
+  console.error("Chat Server Error:", error);
+  res.status(500).json({ message: "حدث خطأ في الخادم" });
+}
 });
 
 export default app;
