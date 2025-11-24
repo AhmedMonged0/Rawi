@@ -119,8 +119,78 @@ app.get('/api/init-db', async (req, res) => {
 // 3. جلب الكتب
 app.get('/api/books', async (req, res) => {
   try {
-    const { rows } = await db.query('SELECT * FROM books');
+    const { rows } = await db.query('SELECT * FROM books ORDER BY created_at DESC');
     res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// 3.1 إضافة كتاب جديد (للأدمن فقط)
+app.post('/api/books', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
+
+    const { title, author, price, category, description, image_url, pdf_url, pages, language, is_new } = req.body;
+
+    const { rows } = await db.query(
+      'INSERT INTO books (title, author, price, category, description, image_url, pdf_url, pages, language, is_new) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
+      [title, author, price, category, description, image_url, pdf_url, pages || 0, language || 'العربية', is_new || false]
+    );
+
+    res.status(201).json(rows[0]);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// 3.2 حذف كتاب (للأدمن فقط)
+app.delete('/api/books/:id', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
+
+    const { rowCount } = await db.query('DELETE FROM books WHERE id = $1', [req.params.id]);
+    if (rowCount === 0) return res.status(404).json({ message: 'الكتاب غير موجود' });
+
+    res.json({ message: 'تم حذف الكتاب بنجاح' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// 3.3 تحديث كتاب (للأدمن فقط)
+app.put('/api/books/:id', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
+
+    const { title, author, price, category, description, image_url, pdf_url, pages, language, is_new } = req.body;
+
+    const { rows } = await db.query(
+      `UPDATE books SET 
+        title = $1, author = $2, price = $3, category = $4, description = $5, 
+        image_url = $6, pdf_url = $7, pages = $8, language = $9, is_new = $10 
+       WHERE id = $11 RETURNING *`,
+      [title, author, price, category, description, image_url, pdf_url, pages, language, is_new, req.params.id]
+    );
+
+    if (rows.length === 0) return res.status(404).json({ message: 'الكتاب غير موجود' });
+
+    res.json(rows[0]);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
