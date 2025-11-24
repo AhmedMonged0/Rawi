@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Helper: Gemini API ---
 const generateGeminiContent = async (prompt) => {
-    const apiKey = "AIzaSyB6V8xJtkBK-8R4AmQpPA1O6L_v6-KDC18";
+    const apiKey = "AIzaSyB_Rsb4xsxIjOgKYvRHwdkhYrLU0rB0HVE";
     // محاولة أخيرة مع الإصدار v1 والموديل 1.5-flash
     const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     try {
@@ -282,9 +282,8 @@ const AILibrarianWidget = () => {
     const handleSend = async (e) => {
         e.preventDefault(); if (!input.trim()) return;
         const userMsg = input; setMessages(prev => [...prev, { role: 'user', text: userMsg }]); setInput(""); setIsTyping(true);
-        const context = `أنت "راوي"، أمين مكتبة ذكي ومثقف في موقع "راوي". ساعد الزوار في اختيار الكتب.`;
-        const prompt = `${context}\n\nالمستخدم: ${userMsg}\nراوي:`;
-        const reply = await generateGeminiContent(prompt);
+        // نرسل الرسالة فقط، والباك اند يتولى السياق (Context)
+        const reply = await generateGeminiContent(userMsg);
         setMessages(prev => [...prev, { role: 'bot', text: reply }]); setIsTyping(false);
     };
     return (
