@@ -45,6 +45,24 @@ app.get('/api/init-db', async (req, res) => {
     try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS country VARCHAR(50)`); } catch (e) { schemaErrors.push('country: ' + e.message); }
     try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500)`); } catch (e) { schemaErrors.push('avatar_url: ' + e.message); }
 
+    // جدول الكتب
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS books (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        author VARCHAR(255) NOT NULL,
+        category VARCHAR(100),
+        description TEXT,
+        image_url TEXT,
+        pdf_url TEXT,
+        pages INTEGER,
+        language VARCHAR(50) DEFAULT 'العربية',
+        is_new BOOLEAN DEFAULT FALSE,
+        rating DECIMAL(2,1) DEFAULT 5.0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     // جدول المفضلة
     await db.query(`
       CREATE TABLE IF NOT EXISTS favorites (
@@ -54,6 +72,54 @@ app.get('/api/init-db', async (req, res) => {
         PRIMARY KEY (user_id, book_id)
       );
     `);
+
+    // إضافة بيانات أولية للكتب (إذا كان الجدول فارغاً)
+    const { rows: bookRows } = await db.query('SELECT COUNT(*) FROM books');
+    if (parseInt(bookRows[0].count) === 0) {
+      const initialBooks = [
+        {
+          title: "خوارزميات المستقبل",
+          author: "د. أحمد الرفاعي",
+          category: "تكنولوجيا",
+          description: "رحلة مذهلة في عالم الذكاء الاصطناعي وكيف سيغير حياتنا.",
+          image_url: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=800",
+          pdf_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+          pages: 320,
+          is_new: true,
+          rating: 4.8
+        },
+        {
+          title: "صدى الصمت",
+          author: "سارة الجابري",
+          category: "روايات",
+          description: "رواية مؤثرة تحكي قصة كفاح وأمل في زمن الصعاب.",
+          image_url: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=800",
+          pdf_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+          pages: 215,
+          is_new: false,
+          rating: 4.5
+        },
+        {
+          title: "أسرار الكون",
+          author: "مارك تايسون",
+          category: "علوم",
+          description: "استكشاف لأعماق الفضاء والثقوب السوداء بلغة مبسطة.",
+          image_url: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=800",
+          pdf_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+          pages: 400,
+          is_new: true,
+          rating: 4.9
+        }
+      ];
+
+      for (const book of initialBooks) {
+        await db.query(
+          `INSERT INTO books (title, author, category, description, image_url, pdf_url, pages, is_new, rating)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [book.title, book.author, book.category, book.description, book.image_url, book.pdf_url, book.pages, book.is_new, book.rating]
+        );
+      }
+    }
 
     // إضافة أو تحديث مستخدم أدمن افتراضي
     const adminPasswordHash = await bcrypt.hash('admin123', 10);
@@ -77,6 +143,88 @@ app.get('/api/init-db', async (req, res) => {
     res.send(`Database initialized! ${adminStatus}`);
   } catch (error) {
     res.status(500).send('Error initializing database: ' + error.message);
+  }
+});
+
+// 3. جلب جميع الكتب
+app.get('/api/books', async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT * FROM books ORDER BY created_at DESC');
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// جلب كتاب واحد
+app.get('/api/books/:id', async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT * FROM books WHERE id = $1', [req.params.id]);
+    if (rows.length === 0) return res.status(404).json({ message: 'الكتاب غير موجود' });
+    res.json(rows[0]);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// إضافة كتاب (للأدمن فقط)
+app.post('/api/books', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
+
+    const { title, author, category, description, image_url, pdf_url, pages, language, is_new } = req.body;
+    const { rows } = await db.query(
+      `INSERT INTO books (title, author, category, description, image_url, pdf_url, pages, language, is_new)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [title, author, category, description, image_url, pdf_url, pages, language || 'العربية', is_new || false]
+    );
+    res.status(201).json(rows[0]);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// تعديل كتاب (للأدمن فقط)
+app.put('/api/books/:id', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
+
+    const { title, author, category, description, image_url, pdf_url, pages, language, is_new } = req.body;
+    const { rows } = await db.query(
+      `UPDATE books SET title=$1, author=$2, category=$3, description=$4, image_url=$5, pdf_url=$6, pages=$7, language=$8, is_new=$9
+       WHERE id=$10 RETURNING *`,
+      [title, author, category, description, image_url, pdf_url, pages, language, is_new, req.params.id]
+    );
+    res.json(rows[0]);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// حذف كتاب (للأدمن فقط)
+app.delete('/api/books/:id', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
+
+    await db.query('DELETE FROM books WHERE id = $1', [req.params.id]);
+    res.json({ message: 'تم حذف الكتاب' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
 
