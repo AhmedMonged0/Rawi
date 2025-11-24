@@ -32,27 +32,6 @@ app.get('/api/init-db', async (req, res) => {
         email VARCHAR(100) NOT NULL UNIQUE,
         password_hash VARCHAR(255) NOT NULL,
         role VARCHAR(20) DEFAULT 'user',
-        ip_address VARCHAR(45),
-        country VARCHAR(50),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    // إضافة مستخدم أدمن افتراضي إذا كان الجدول فارغاً
-    const { rows: userCountRows } = await db.query('SELECT count(*) as count FROM users');
-    if (parseInt(userCountRows[0].count) === 0) {
-      const adminPasswordHash = await bcrypt.hash('admin123', 10); // Hash the admin password
-      await db.query(
-        'INSERT INTO users (username, email, password_hash, role) VALUES ($1, $2, $3, $4)',
-        ['admin', 'admin@rawi.com', adminPasswordHash, 'admin']
-      );
-    }
-
-    // جدول الكتب
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS books (
-        id SERIAL PRIMARY KEY,
-        title VARCHAR(255) NOT NULL,
         author VARCHAR(255) NOT NULL,
         price DECIMAL(10, 2) NOT NULL,
         category VARCHAR(100),
