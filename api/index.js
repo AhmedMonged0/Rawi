@@ -127,5 +127,35 @@ app.post('/api/auth/signup', async (req, res) => {
   }
 });
 
+// 6. تسجيل دخول الأدمن (Hardcoded)
+app.post('/api/admin/login', (req, res) => {
+  const { username, password } = req.body;
+  // بيانات الأدمن الثابتة (يمكن تغييرها لاحقاً)
+  if (username === 'admin' && password === 'admin123') {
+    const token = jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: '1h' });
+    res.json({ message: 'أهلاً بك يا مدير! 🕴️', token });
+  } else {
+    res.status(401).json({ message: 'بيانات الدخول غير صحيحة' });
+  }
+});
+
+// 7. جلب المستخدمين (للأدمن فقط)
+app.get('/api/admin/users', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
+
+    const { rows } = await db.query('SELECT id, username, email, created_at FROM users ORDER BY created_at DESC');
+    res.json(rows);
+  } catch (error) {
+    res.status(403).json({ message: 'توكن غير صالح' });
+  }
+});
+
 // هذا السطر هو سر عمل السيرفر على Vercel
 export default app;
