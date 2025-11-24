@@ -515,22 +515,13 @@ export default function Home() {
 
             {/* Hero */}
             <section className="relative pt-32 pb-20 px-6 min-h-screen flex items-center overflow-hidden">
-                <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
-                    <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8 }}>
-                        <span className="inline-flex items-center gap-2 py-1 px-3 rounded-full bg-white/5 border border-white/10 text-purple-400 text-sm font-medium mb-4 backdrop-blur-sm"><Sparkles size={14} /> مكتبة المستقبل الذكية</span>
+                <div className="max-w-4xl mx-auto text-center relative z-10">
+                    <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
+                        <span className="inline-flex items-center gap-2 py-1 px-3 rounded-full bg-white/5 border border-white/10 text-purple-400 text-sm font-medium mb-6 backdrop-blur-sm mx-auto"><Sparkles size={14} /> مكتبة المستقبل الذكية</span>
                         <h1 className="text-5xl md:text-7xl font-bold leading-tight mb-6 text-white">اكتشف عوالماً <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">لا حدود لها</span></h1>
-                        <p className="text-gray-400 text-lg mb-8 max-w-lg leading-relaxed">منصة "راوي" تقدم لك تجربة قراءة استثنائية تجمع بين سحر الورق وتقنيات المستقبل.</p>
-                        <div className="flex flex-wrap gap-4"><button onClick={() => document.getElementById('books-section').scrollIntoView({ behavior: 'smooth' })} className="bg-white text-black px-8 py-3 rounded-full font-bold hover:bg-gray-200 transition-all flex items-center gap-2 hover:scale-105 active:scale-95"><Sparkles size={18} /> تصفح الكتب الجديدة</button><button onClick={scrollToAbout} className="border border-white/20 px-8 py-3 rounded-full font-medium hover:bg-white/5 hover:border-white/50 transition-all bg-white/5 backdrop-blur hover:scale-105 active:scale-95 text-white">انضم لمجتمع القراء</button></div>
+                        <p className="text-gray-400 text-lg mb-10 max-w-2xl mx-auto leading-relaxed">منصة "راوي" تقدم لك تجربة قراءة استثنائية تجمع بين سحر الورق وتقنيات المستقبل.</p>
+                        <div className="flex flex-wrap gap-4 justify-center"><button onClick={() => document.getElementById('books-section').scrollIntoView({ behavior: 'smooth' })} className="bg-white text-black px-8 py-3 rounded-full font-bold hover:bg-gray-200 transition-all flex items-center gap-2 hover:scale-105 active:scale-95"><Sparkles size={18} /> تصفح الكتب الجديدة</button><button onClick={scrollToAbout} className="border border-white/20 px-8 py-3 rounded-full font-medium hover:bg-white/5 hover:border-white/50 transition-all bg-white/5 backdrop-blur hover:scale-105 active:scale-95 text-white">انضم لمجتمع القراء</button></div>
                     </motion.div>
-                    <div className="flex justify-center lg:justify-end perspective-1000 group">
-                        <motion.div className="w-72 h-[450px] bg-gradient-to-br from-purple-600 to-blue-800 rounded-2xl shadow-[0_20px_50px_rgba(88,28,135,0.5)] relative transform transition-transform duration-300 group-hover:rotate-y-12 group-hover:rotate-x-6 preserve-3d cursor-pointer overflow-hidden" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                            <img src="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=800" className="absolute inset-0 w-full h-full object-cover opacity-50 mix-blend-overlay" alt="Cover" />
-                            <div className="absolute inset-0 flex flex-col justify-between p-8 border-l-4 border-white/10">
-                                <div><h2 className="text-4xl font-bold text-white font-serif drop-shadow-lg">خوارزميات<br />المستقبل</h2><p className="text-white/80 mt-2 text-sm">د. أحمد الرفاعي</p></div>
-                                <div className="flex justify-between items-center"><span className="text-xl font-bold text-white">راوي</span><BookOpen size={28} className="text-white/80" /></div>
-                            </div>
-                        </motion.div>
-                    </div>
                 </div>
             </section>
 
