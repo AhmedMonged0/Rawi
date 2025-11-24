@@ -9,8 +9,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 // --- Helper: Gemini API ---
 const generateGeminiContent = async (prompt) => {
     const apiKey = "AIzaSyB6V8xJtkBK-8R4AmQpPA1O6L_v6-KDC18";
-    // استخدام موديل gemini-pro المستقر
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+    // محاولة أخيرة مع الإصدار v1 والموديل 1.5-flash
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     try {
         const response = await fetch(url, {
             method: 'POST',
