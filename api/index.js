@@ -59,33 +59,6 @@ app.get('/api/init-db', async (req, res) => {
         email VARCHAR(100) NOT NULL UNIQUE,
         password_hash VARCHAR(255) NOT NULL,
         ip_address VARCHAR(45),
-        country VARCHAR(50),
-        verification_code VARCHAR(6) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    // تحديث الأعمدة للمستخدمين القدامى (للتوافق فقط)
-    const schemaErrors = [];
-    ['خوارزميات المستقبل', 'د. أحمد الرفاعي', 120.00, 'تكنولوجيا', 'وصف...', 4.8, 320, 'العربية', 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=800', true],
-      ['أسرار الكون المظلم', 'سارة الفلكي', 95.00, 'علوم', 'وصف...', 4.5, 280, 'العربية', 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&q=80&w=800', false],
-      ['رحلة في عقل آلة', 'عمر الذكي', 150.00, 'ذكاء اصطناعي', 'وصف...', 4.9, 450, 'مترجم', 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&q=80&w=800', true],
-      ['فن التصميم الرقمي', 'ليلى المصمم', 85.00, 'فنون', 'وصف...', 4.7, 190, 'العربية', 'https://images.unsplash.com/photo-1558655146-d09347e92766?auto=format&fit=crop&q=80&w=800', false],
-      ['تاريخ ما بعد البشرية', 'يوسف المؤرخ', 110.00, 'خيال علمي', 'وصف...', 4.6, 400, 'العربية', 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=800', true],
-      ['البرمجة للجميع', 'أكاديمية الكود', 200.00, 'تكنولوجيا', 'وصف...', 5.0, 550, 'مترجم', 'https://images.unsplash.com/photo-1587620962725-abab7fe55159?auto=format&fit=crop&q=80&w=800', false]
-      ];
-    for (const book of initialBooks) {
-      await db.query(
-        'INSERT INTO books (title, author, price, category, description, rating, pages, language, image_url, is_new) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
-        book
-      );
-    }
-  }
-
-    res.json({ message: 'Database Initialized Successfully!', adminStatus, schemaErrors: schemaErrors.length > 0 ? schemaErrors : 'None' });
-} catch (error) {
-  console.error(error);
-  res.status(500).json({ error: error.message });
 }
 });
 
@@ -149,7 +122,7 @@ app.post('/api/auth/signup', async (req, res) => {
   // إرسال الإيميل
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`Verification email sent to ${email} `);
+    console.log(`Verification email sent to ${ email } `);
   } catch (emailError) {
     console.error("Email sending failed:", emailError);
     return res.status(500).json({ message: "فشل إرسال البريد الإلكتروني. يرجى المحاولة لاحقاً." });
@@ -260,30 +233,30 @@ app.post('/api/chat', async (req, res) => {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{ text: `أنت "راوي"، أمين مكتبة ذكي ومثقف في موقع "راوي". ساعد الزوار في اختيار الكتب. اجابتك يجب أن تكون قصيرة ومفيدة.\n\nالمستخدم: ${message}\nراوي:` }]
-        }]
-      })
-    });
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: `أنت "راوي"، أمين مكتبة ذكي ومثقف في موقع "راوي". ساعد الزوار في اختيار الكتب. اجابتك يجب أن تكون قصيرة ومفيدة.\n\nالمستخدم: ${message}\nراوي:` }]
+          }]
+        })
+      });
 
-    if (!response.ok) {
-      const errData = await response.json();
-      console.error("Gemini Backend Error:", errData);
-      return res.status(response.status).json({ message: "فشل الاتصال بالذكاء الاصطناعي" });
+      if (!response.ok) {
+        const errData = await response.json();
+        console.error("Gemini Backend Error:", errData);
+        return res.status(response.status).json({ message: "فشل الاتصال بالذكاء الاصطناعي" });
+      }
+
+      const data = await response.json();
+      const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "عذراً، لم أستطع فهم ذلك.";
+      res.json({ reply });
+
+    } catch (error) {
+      console.error("Chat Server Error:", error);
+      res.status(500).json({ message: "حدث خطأ في الخادم" });
     }
-
-    const data = await response.json();
-    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "عذراً، لم أستطع فهم ذلك.";
-    res.json({ reply });
-
-  } catch (error) {
-    console.error("Chat Server Error:", error);
-    res.status(500).json({ message: "حدث خطأ في الخادم" });
-  }
-});
+  });
 
 export default app;
