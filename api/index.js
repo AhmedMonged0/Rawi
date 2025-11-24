@@ -256,7 +256,7 @@ app.post('/api/admin/login', async (req, res) => {
     const isValid = await bcrypt.compare(password, adminUser.password_hash);
     if (!isValid) return res.status(401).json({ message: 'كلمة المرور غير صحيحة' });
 
-    const token = jwt.sign({ id: adminUser.id, email: adminUser.email, role: adminUser.role }, JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ id: adminUser.id, email: adminUser.email, role: adminUser.role }, JWT_SECRET, { expiresIn: '24h' });
     res.json({ message: 'أهلاً بك يا مدير! 🕴️', token });
   } catch (error) {
     res.status(500).json({ message: error.message });
