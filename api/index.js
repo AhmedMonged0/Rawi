@@ -2,17 +2,28 @@ import express from 'express';
 import cors from 'cors';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import nodemailer from 'nodemailer';
 import db from './db.js';
 
 const app = express();
 const JWT_SECRET = process.env.JWT_SECRET || 'rawi-secret-key';
 
-// إعدادات CORS للسماح للواجهة بالاتصال
+// إعدادات CORS
 app.use(cors({
-  origin: '*', // يسمح للطلبات من أي مكان (جيد للتجربة)
+  origin: '*',
   credentials: true
 }));
 app.use(express.json());
+
+// --- إعداد Nodemailer ---
+// ⚠️ يجب وضع بياناتك الحقيقية هنا أو في متغيرات البيئة
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: 'YOUR_GMAIL_HERE@gmail.com', // استبدل هذا ببريدك
+    pass: 'YOUR_APP_PASSWORD_HERE'    // استبدل هذا بكلمة مرور التطبيقات
+  }
+});
 
 // --- الروابط (Endpoints) ---
 
@@ -21,7 +32,7 @@ app.get('/api', (req, res) => {
   res.send('Rawi Server is Running on Vercel! 🚀');
 });
 
-// 2. 🛠️ بناء قاعدة البيانات (شغله مرة واحدة بعد الرفع)
+// 2. 🛠️ تهيئة قاعدة البيانات
 app.get('/api/init-db', async (req, res) => {
   try {
     // جدول المستخدمين
@@ -34,32 +45,35 @@ app.get('/api/init-db', async (req, res) => {
         role VARCHAR(20) DEFAULT 'user',
         ip_address VARCHAR(45),
         country VARCHAR(50),
+        is_verified BOOLEAN DEFAULT FALSE,
+        verification_code VARCHAR(6),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
-    // التأكد من وجود الأعمدة (للحالات القديمة)
-    // نستخدم try/catch لكل عمود على حدة لتجنب توقف السكربت بالكامل
+    // تحديث الأعمدة للمستخدمين القدامى
     const schemaErrors = [];
     try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user'`); } catch (e) { schemaErrors.push('role: ' + e.message); }
     try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45)`); } catch (e) { schemaErrors.push('ip_address: ' + e.message); }
     try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS country VARCHAR(50)`); } catch (e) { schemaErrors.push('country: ' + e.message); }
+    try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE`); } catch (e) { schemaErrors.push('is_verified: ' + e.message); }
+    try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code VARCHAR(6)`); } catch (e) { schemaErrors.push('verification_code: ' + e.message); }
 
-    // إضافة أو تحديث مستخدم أدمن افتراضي
+    // أدمن افتراضي
     const adminPasswordHash = await bcrypt.hash('admin123', 10);
     const { rows: adminRows } = await db.query("SELECT * FROM users WHERE username = 'admin'");
-
     let adminStatus = '';
+
     if (adminRows.length === 0) {
       await db.query(
-        'INSERT INTO users (username, email, password_hash, role) VALUES ($1, $2, $3, $4)',
-        ['admin', 'admin@rawi.com', adminPasswordHash, 'admin']
+        'INSERT INTO users (username, email, password_hash, role, is_verified) VALUES ($1, $2, $3, $4, $5)',
+        ['admin', 'admin@rawi.com', adminPasswordHash, 'admin', true]
       );
       adminStatus = 'Admin user CREATED';
     } else {
       await db.query(
-        'UPDATE users SET password_hash = $1, role = $2 WHERE username = $3',
-        [adminPasswordHash, 'admin', 'admin']
+        'UPDATE users SET password_hash = $1, role = $2, is_verified = $3 WHERE username = $4',
+        [adminPasswordHash, 'admin', true, 'admin']
       );
       adminStatus = 'Admin user UPDATED';
     }
@@ -82,7 +96,7 @@ app.get('/api/init-db', async (req, res) => {
       );
     `);
 
-    // إضافة كتب افتراضية إذا كان الجدول فارغاً
+    // إضافة كتب افتراضية
     const { rows } = await db.query('SELECT count(*) as count FROM books');
     if (parseInt(rows[0].count) === 0) {
       const initialBooks = [
@@ -93,7 +107,6 @@ app.get('/api/init-db', async (req, res) => {
         ['تاريخ ما بعد البشرية', 'يوسف المؤرخ', 110.00, 'خيال علمي', 'وصف...', 4.6, 400, 'العربية', 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=800', true],
         ['البرمجة للجميع', 'أكاديمية الكود', 200.00, 'تكنولوجيا', 'وصف...', 5.0, 550, 'مترجم', 'https://images.unsplash.com/photo-1587620962725-abab7fe55159?auto=format&fit=crop&q=80&w=800', false]
       ];
-
       for (const book of initialBooks) {
         await db.query(
           'INSERT INTO books (title, author, price, category, description, rating, pages, language, image_url, is_new) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
@@ -102,11 +115,7 @@ app.get('/api/init-db', async (req, res) => {
       }
     }
 
-    res.json({
-      message: 'Database Initialized Successfully!',
-      adminStatus,
-      schemaErrors: schemaErrors.length > 0 ? schemaErrors : 'None'
-    });
+    res.json({ message: 'Database Initialized Successfully!', adminStatus, schemaErrors: schemaErrors.length > 0 ? schemaErrors : 'None' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message });
@@ -134,11 +143,14 @@ app.post('/api/auth/login', async (req, res) => {
     const isValid = await bcrypt.compare(password, user.password_hash);
     if (!isValid) return res.status(401).json({ message: 'كلمة المرور غير صحيحة' });
 
-    // تحديث الـ IP والدولة عند تسجيل الدخول
+    // التحقق من تفعيل الحساب
+    if (user.is_verified === false) {
+      return res.status(403).json({ message: 'يرجى تفعيل حسابك أولاً. تم إرسال كود إلى بريدك.', needsVerification: true, email: user.email });
+    }
+
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const country = req.headers['x-vercel-ip-country'] || 'Unknown';
     await db.query('UPDATE users SET ip_address = $1, country = $2 WHERE id = $3', [ip, country, user.id]);
-
 
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
     res.json({ message: 'تم الدخول بنجاح', token, user: { username: user.username, email: user.email, role: user.role } });
@@ -147,7 +159,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// 5. إنشاء حساب
+// 5. إنشاء حساب (مع كود التحقق)
 app.post('/api/auth/signup', async (req, res) => {
   const { username, email, password } = req.body;
   try {
@@ -156,21 +168,66 @@ app.post('/api/auth/signup', async (req, res) => {
 
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const country = req.headers['x-vercel-ip-country'] || 'Unknown';
-
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    // إنشاء كود تحقق من 6 أرقام
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+
     await db.query(
-      'INSERT INTO users (username, email, password_hash, ip_address, country) VALUES ($1, $2, $3, $4, $5)',
-      [username, email, hashedPassword, ip, country]
+      'INSERT INTO users (username, email, password_hash, ip_address, country, is_verified, verification_code) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+      [username, email, hashedPassword, ip, country, false, verificationCode]
     );
 
+    // إرسال الإيميل
+    const mailOptions = {
+      from: '"Rawi Bookstore" <YOUR_GMAIL_HERE@gmail.com>',
+      to: email,
+      subject: 'كود تفعيل حسابك في راوي',
+      text: `أهلاً بك في راوي! كود التفعيل الخاص بك هو: ${verificationCode}`,
+      html: `<h3>أهلاً بك في راوي! 📚</h3><p>كود التفعيل الخاص بك هو:</p><h2>${verificationCode}</h2>`
+    };
 
-    res.status(201).json({ message: 'تم إنشاء الحساب بنجاح' });
+    // محاولة الإرسال (لن توقف العملية إذا فشلت لعدم وجود بيانات حقيقية)
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log(`Verification email sent to ${email}`);
+    } catch (emailError) {
+      console.error("Email sending failed:", emailError);
+      // يمكننا إرجاع رسالة تحذيرية، لكن سنكمل التسجيل
+    }
+
+    res.status(201).json({ message: 'تم إنشاء الحساب. يرجى التحقق من بريدك الإلكتروني لتفعيل الحساب.', needsVerification: true, email });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-// 6. تسجيل دخول الأدمن (Hardcoded)
+// 5.5 تفعيل الحساب (Verify)
+app.post('/api/auth/verify', async (req, res) => {
+  const { email, code } = req.body;
+  try {
+    const { rows } = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (rows.length === 0) return res.status(404).json({ message: 'المستخدم غير موجود' });
+
+    const user = rows[0];
+    if (user.is_verified) return res.status(400).json({ message: 'الحساب مفعل بالفعل' });
+
+    if (user.verification_code !== code) {
+      return res.status(400).json({ message: 'كود التحقق غير صحيح' });
+    }
+
+    await db.query('UPDATE users SET is_verified = TRUE, verification_code = NULL WHERE id = $1', [user.id]);
+
+    // تسجيل الدخول تلقائياً بعد التفعيل
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
+    res.json({ message: 'تم تفعيل الحساب بنجاح!', token, user: { username: user.username, email: user.email, role: user.role } });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// 6. أدمن لوجن
 app.post('/api/admin/login', async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -190,53 +247,73 @@ app.post('/api/admin/login', async (req, res) => {
   }
 });
 
-// 7. جلب المستخدمين (للأدمن فقط)
+// 7. جلب المستخدمين
 app.get('/api/admin/users', async (req, res) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-
   if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
-
-    const { rows } = await db.query('SELECT id, username, email, role, created_at, ip_address, country FROM users ORDER BY created_at DESC');
+    const { rows } = await db.query('SELECT id, username, email, role, created_at, ip_address, country, is_verified FROM users ORDER BY created_at DESC');
     res.json(rows);
-
   } catch (error) {
     res.status(403).json({ message: 'توكن غير صالح' });
   }
 });
 
-// 8. حذف مستخدم (للأدمن فقط)
+// 8. حذف مستخدم
 app.delete('/api/admin/users/:id', async (req, res) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
   const userIdToDelete = req.params.id;
-
   if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
-
-    // لا تسمح للأدمن بحذف نفسه
-    if (decoded.id == userIdToDelete) {
-      return res.status(403).json({ message: 'لا يمكنك حذف حسابك الخاص كأدمن' });
-    }
+    if (decoded.id == userIdToDelete) return res.status(403).json({ message: 'لا يمكنك حذف حسابك الخاص كأدمن' });
 
     const { rowCount } = await db.query('DELETE FROM users WHERE id = $1', [userIdToDelete]);
-
-    if (rowCount === 0) {
-      return res.status(404).json({ message: 'المستخدم غير موجود' });
-    }
-
+    if (rowCount === 0) return res.status(404).json({ message: 'المستخدم غير موجود' });
     res.json({ message: 'تم حذف المستخدم بنجاح' });
   } catch (error) {
-    res.status(403).json({ message: 'توكن غير صالح أو خطأ في الخادم' });
+    res.status(403).json({ message: 'توكن غير صالح' });
   }
 });
 
-// هذا السطر هو سر عمل السيرفر على Vercel
+// 9. 🤖 المحادثة مع الذكاء الاصطناعي
+app.post('/api/chat', async (req, res) => {
+  const { message } = req.body;
+  const apiKey = "AIzaSyB_Rsb4xsxIjOgKYvRHwdkhYrLU0rB0HVE";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{ text: `أنت "راوي"، أمين مكتبة ذكي ومثقف في موقع "راوي". ساعد الزوار في اختيار الكتب. اجابتك يجب أن تكون قصيرة ومفيدة.\n\nالمستخدم: ${message}\nراوي:` }]
+        }]
+      })
+    });
+
+    if (!response.ok) {
+      const errData = await response.json();
+      console.error("Gemini Backend Error:", errData);
+      return res.status(response.status).json({ message: "فشل الاتصال بالذكاء الاصطناعي" });
+    }
+
+    const data = await response.json();
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "عذراً، لم أستطع فهم ذلك.";
+    res.json({ reply });
+
+  } catch (error) {
+    console.error("Chat Server Error:", error);
+    res.status(500).json({ message: "حدث خطأ في الخادم" });
+  }
+});
+
 export default app;
