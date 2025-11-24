@@ -469,4 +469,3 @@ app.post('/api/chat', async (req, res) => {
 
 // هذا السطر هو سر عمل السيرفر على Vercel
 export default app;
-```
