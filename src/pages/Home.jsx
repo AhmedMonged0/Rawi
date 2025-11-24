@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
     ShoppingBag, Search, BookOpen, X, Star, ArrowRight, Heart, Menu,
     Globe, Sparkles, MessageSquare, Send, Bot, Loader2, Check,
-    CreditCard, Trash2, Mail, User, Phone, Code, Feather, Zap, LogIn, LogOut, ShieldCheck, Users, History
+    CreditCard, Trash2, Mail, User, Phone, Code, Feather, Zap, LogIn, LogOut, ShieldCheck, Users, History, Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -242,7 +242,7 @@ const BookDetailsModal = ({ book, onClose, onAddToCart, onAddWishlist }) => (
                 <div className="flex justify-between items-start mb-4"><div><span className="text-purple-400 text-sm font-medium">{book.category}</span><h2 className="text-3xl font-bold text-white mt-1">{book.title}</h2><p className="text-gray-400">{book.author}</p></div><button onClick={onClose} className="text-gray-500 hover:text-white"><X /></button></div>
                 <div className="flex gap-6 text-sm text-gray-400 mb-6 border-b border-white/10 pb-4"><div className="flex items-center gap-1"><Star className="text-yellow-400 fill-yellow-400" size={16} /> {book.rating}</div><div className="flex items-center gap-1"><BookOpen size={16} /> {book.pages} صفحة</div><div className="flex items-center gap-1"><Globe size={16} /> {book.language}</div></div>
                 <p className="text-gray-300 leading-relaxed mb-6">{book.description || "وصف الكتاب غير متاح حالياً."}</p>
-                <div className="flex gap-3 mb-8"><button onClick={() => onAddToCart(book)} className="flex-1 bg-white text-black py-3 rounded-xl font-bold hover:bg-gray-200 transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"><ShoppingBag size={20} /> إضافة للسلة - {book.price} ر.س</button><button onClick={() => onAddWishlist(book)} className="p-3 rounded-xl border border-white/20 hover:bg-white/10 text-white transition-all hover:scale-[1.05]"><Heart size={20} /></button></div>
+                <div className="flex gap-3 mb-8"><button onClick={() => window.open(book.pdf_url, '_blank')} className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-xl font-bold hover:opacity-90 transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"><Download size={20} /> تحميل الكتاب</button><button onClick={() => onAddWishlist(book)} className="p-3 rounded-xl border border-white/20 hover:bg-white/10 text-white transition-all hover:scale-[1.05]"><Heart size={20} /></button></div>
             </div>
         </motion.div>
     </motion.div>
@@ -451,7 +451,7 @@ export default function Home() {
                         </button>
                     )}
 
-                    <button className="hover:text-purple-400 transition-colors hover:scale-110 active:scale-95 transform relative" onClick={() => setIsCartOpen(true)}><ShoppingBag size={22} />{cart.length > 0 && <span className="absolute -top-2 -right-2 bg-purple-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-[#0a0a0a]">{cart.length}</span>}</button>
+                    {/* Cart Button Removed */}
                     <button className="md:hidden" onClick={() => setIsMenuOpen(!isMenuOpen)}><Menu size={24} /></button>
                 </div>
             </nav>
@@ -506,8 +506,7 @@ export default function Home() {
                                         <h3 className="text-lg font-bold text-white line-clamp-1 cursor-pointer hover:text-purple-400 transition-colors" onClick={() => setSelectedBook(book)}>{book.title}</h3>
                                         <p className="text-sm text-gray-400 line-clamp-1">{book.author}</p>
                                         <div className="flex items-center justify-between pt-3 border-t border-white/5 mt-3">
-                                            <span className="text-xl font-bold text-white">{book.price} <span className="text-sm text-gray-500 font-normal">ر.س</span></span>
-                                            <button onClick={() => addToCart(book)} className="px-4 py-2 bg-white/10 hover:bg-white text-white hover:text-black rounded-xl text-sm font-bold transition-all flex items-center gap-2"><ShoppingBag size={16} /> إضافة</button>
+                                            <button onClick={() => window.open(book.pdf_url, '_blank')} className="w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:opacity-90 text-white rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2"><Download size={16} /> تحميل الكتاب</button>
                                         </div>
                                     </div>
                                 </motion.div>
