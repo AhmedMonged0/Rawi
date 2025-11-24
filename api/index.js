@@ -17,11 +17,70 @@ app.use(express.json());
 // --- الروابط (Endpoints) ---
 
 // 1. فحص السيرفر
-        language VARCHAR(50) DEFAULT 'العربية',
-  is_new BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+app.get('/api', (req, res) => {
+  res.send('Rawi Server is Running on Vercel! 🚀');
+});
+
+// 2. 🛠️ بناء قاعدة البيانات (شغله مرة واحدة بعد الرفع)
+app.get('/api/init-db', async (req, res) => {
+  try {
+    // جدول المستخدمين
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(50) NOT NULL,
+        email VARCHAR(100) NOT NULL UNIQUE,
+        password_hash VARCHAR(255) NOT NULL,
+        role VARCHAR(20) DEFAULT 'user',
+        ip_address VARCHAR(45),
+        country VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-`);
+    `);
+
+    // التأكد من وجود الأعمدة (للحالات القديمة)
+    // نستخدم try/catch لكل عمود على حدة لتجنب توقف السكربت بالكامل
+    const schemaErrors = [];
+    try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user'`); } catch (e) { schemaErrors.push('role: ' + e.message); }
+    try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45)`); } catch (e) { schemaErrors.push('ip_address: ' + e.message); }
+    try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS country VARCHAR(50)`); } catch (e) { schemaErrors.push('country: ' + e.message); }
+
+    // إضافة أو تحديث مستخدم أدمن افتراضي
+    const adminPasswordHash = await bcrypt.hash('admin123', 10);
+    const { rows: adminRows } = await db.query("SELECT * FROM users WHERE username = 'admin'");
+
+    let adminStatus = '';
+    if (adminRows.length === 0) {
+      await db.query(
+        'INSERT INTO users (username, email, password_hash, role) VALUES ($1, $2, $3, $4)',
+        ['admin', 'admin@rawi.com', adminPasswordHash, 'admin']
+      );
+      adminStatus = 'Admin user CREATED';
+    } else {
+      await db.query(
+        'UPDATE users SET password_hash = $1, role = $2 WHERE username = $3',
+        [adminPasswordHash, 'admin', 'admin']
+      );
+      adminStatus = 'Admin user UPDATED';
+    }
+
+    // جدول الكتب
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS books (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        author VARCHAR(255) NOT NULL,
+        price DECIMAL(10, 2) NOT NULL,
+        category VARCHAR(100),
+        description TEXT,
+        image_url VARCHAR(500),
+        rating DECIMAL(3, 1) DEFAULT 0.0,
+        pages INT,
+        language VARCHAR(50) DEFAULT 'العربية',
+        is_new BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
 
     // إضافة كتب افتراضية إذا كان الجدول فارغاً
     const { rows } = await db.query('SELECT count(*) as count FROM books');
@@ -43,10 +102,14 @@ app.use(express.json());
       }
     }
 
-    res.send('✅ Database & Tables Created Successfully!');
+    res.json({
+      message: 'Database Initialized Successfully!',
+      adminStatus,
+      schemaErrors: schemaErrors.length > 0 ? schemaErrors : 'None'
+    });
   } catch (error) {
     console.error(error);
-    res.status(500).send('❌ Error: ' + error.message);
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -78,19 +141,73 @@ app.post('/api/auth/login', async (req, res) => {
 
 
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
-    if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+    res.json({ message: 'تم الدخول بنجاح', token, user: { username: user.username, email: user.email, role: user.role } });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
+// 5. إنشاء حساب
+app.post('/api/auth/signup', async (req, res) => {
+  const { username, email, password } = req.body;
+  try {
+    const { rows } = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (rows.length > 0) return res.status(400).json({ message: 'البريد مسجل مسبقاً' });
 
-      const { rows } = await db.query('SELECT id, username, email, role, created_at, ip_address, country FROM users ORDER BY created_at DESC');
-      res.json(rows);
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const country = req.headers['x-vercel-ip-country'] || 'Unknown';
 
-    } catch (error) {
-      res.status(403).json({ message: 'توكن غير صالح' });
-    }
-  });
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await db.query(
+      'INSERT INTO users (username, email, password_hash, ip_address, country) VALUES ($1, $2, $3, $4, $5)',
+      [username, email, hashedPassword, ip, country]
+    );
+
+
+    res.status(201).json({ message: 'تم إنشاء الحساب بنجاح' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// 6. تسجيل دخول الأدمن (Hardcoded)
+app.post('/api/admin/login', async (req, res) => {
+  const { username, password } = req.body;
+  try {
+    const { rows } = await db.query('SELECT * FROM users WHERE username = $1', [username]);
+    if (rows.length === 0) return res.status(401).json({ message: 'اسم المستخدم غير موجود' });
+
+    const adminUser = rows[0];
+    if (adminUser.role !== 'admin') return res.status(403).json({ message: 'هذا الحساب ليس له صلاحيات أدمن' });
+
+    const isValid = await bcrypt.compare(password, adminUser.password_hash);
+    if (!isValid) return res.status(401).json({ message: 'كلمة المرور غير صحيحة' });
+
+    const token = jwt.sign({ id: adminUser.id, email: adminUser.email, role: adminUser.role }, JWT_SECRET, { expiresIn: '1h' });
+    res.json({ message: 'أهلاً بك يا مدير! 🕴️', token });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// 7. جلب المستخدمين (للأدمن فقط)
+app.get('/api/admin/users', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
+
+    const { rows } = await db.query('SELECT id, username, email, role, created_at, ip_address, country FROM users ORDER BY created_at DESC');
+    res.json(rows);
+
+  } catch (error) {
+    res.status(403).json({ message: 'توكن غير صالح' });
+  }
+});
 
 // 8. حذف مستخدم (للأدمن فقط)
 app.delete('/api/admin/users/:id', async (req, res) => {
