@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Users, Loader2, X, LogOut } from 'lucide-react';
+import { ShieldCheck, Users, Loader2, X, LogOut, Trash2, MapPin, Globe } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const AdminDashboard = ({ token, onLogout }) => {
@@ -12,6 +12,28 @@ const AdminDashboard = ({ token, onLogout }) => {
             .then(data => { setUsers(data); setLoading(false); })
             .catch(err => console.error(err));
     }, [token]);
+
+    const handleDeleteUser = async (userId) => {
+        if (!window.confirm('هل أنت متأكد من حذف هذا المستخدم؟ لا يمكن التراجع عن هذا الإجراء.')) return;
+
+        try {
+            const res = await fetch(`/api/admin/users/${userId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                setUsers(users.filter(u => u.id !== userId));
+                alert(data.message);
+            } else {
+                alert(data.message);
+            }
+        } catch (error) {
+            console.error(error);
+            alert('حدث خطأ أثناء الحذف');
+        }
+    };
 
     return (
         <div className="min-h-screen bg-[#0a0a0a] text-white font-['Tajawal'] p-8" dir="rtl">
@@ -51,14 +73,16 @@ const AdminDashboard = ({ token, onLogout }) => {
                                     <th className="p-4">ID</th>
                                     <th className="p-4">الاسم</th>
                                     <th className="p-4">البريد</th>
+                                    <th className="p-4">الموقع</th>
                                     <th className="p-4">الصلاحية</th>
                                     <th className="p-4">التاريخ</th>
+                                    <th className="p-4">إجراءات</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {loading ? (
                                     <tr>
-                                        <td colSpan="5" className="p-8 text-center">
+                                        <td colSpan="7" className="p-8 text-center">
                                             <Loader2 className="animate-spin mx-auto" />
                                         </td>
                                     </tr>
@@ -68,12 +92,27 @@ const AdminDashboard = ({ token, onLogout }) => {
                                             <td className="p-4">#{u.id}</td>
                                             <td className="p-4 font-bold text-white">{u.username}</td>
                                             <td className="p-4">{u.email}</td>
+                                            <td className="p-4 text-xs text-gray-400">
+                                                <div className="flex items-center gap-1"><Globe size={12} /> {u.country || 'غير معروف'}</div>
+                                                <div className="flex items-center gap-1 mt-1"><MapPin size={12} /> {u.ip_address || '---'}</div>
+                                            </td>
                                             <td className="p-4">
                                                 <span className={`px-2 py-1 rounded text-xs ${u.role === 'admin' ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'}`}>
                                                     {u.role || 'user'}
                                                 </span>
                                             </td>
                                             <td className="p-4">{new Date(u.created_at).toLocaleDateString('ar-EG')}</td>
+                                            <td className="p-4">
+                                                {u.role !== 'admin' && (
+                                                    <button
+                                                        onClick={() => handleDeleteUser(u.id)}
+                                                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10 p-2 rounded-lg transition-colors"
+                                                        title="حذف المستخدم"
+                                                    >
+                                                        <Trash2 size={18} />
+                                                    </button>
+                                                )}
+                                            </td>
                                         </tr>
                                     ))
                                 )}
