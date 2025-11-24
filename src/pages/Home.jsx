@@ -10,46 +10,86 @@ import { motion, AnimatePresence } from 'framer-motion';
 // --- Helper: Gemini API ---
 const generateGeminiContent = async (prompt) => {
     const apiKey = "AIzaSyB_Rsb4xsxIjOgKYvRHwdkhYrLU0rB0HVE";
-    // جرب موديلات مختلفة
+    // جرب موديلات مختلفة بالترتيب
     const models = [
-        'gemini-2.0-flash-exp',
         'gemini-1.5-flash',
-        'gemini-pro'
+        'gemini-1.5-pro',
+        'gemini-pro',
+        'gemini-2.0-flash-exp'
     ];
     
     for (const model of models) {
         try {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+            
             const response = await fetch(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                },
                 body: JSON.stringify({ 
                     contents: [{ 
                         parts: [{ text: prompt }] 
-                    }] 
+                    }],
+                    generationConfig: {
+                        temperature: 0.7,
+                        topK: 40,
+                        topP: 0.95,
+                        maxOutputTokens: 1024,
+                    }
                 })
             });
             
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                console.error('API Error:', errorData);
-                continue; // جرب الموديل التالي
+                const errorText = await response.text();
+                let errorData;
+                try {
+                    errorData = JSON.parse(errorText);
+                } catch {
+                    errorData = { error: { message: errorText } };
+                }
+                console.error(`API Error for ${model}:`, errorData);
+                
+                // إذا كان الخطأ 404 (موديل غير موجود)، جرب التالي
+                if (response.status === 404) {
+                    continue;
+                }
+                
+                // إذا كان الخطأ 403 أو 401 (مشكلة في API key)، لا تجرب موديلات أخرى
+                if (response.status === 403 || response.status === 401) {
+                    return "يرجى التحقق من مفتاح API. قد يكون غير صحيح أو غير مفعّل.";
+                }
+                
+                continue;
             }
             
             const data = await response.json();
-            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            
+            // معالجة مختلفة للـ response structure
+            let text = null;
+            if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+                text = data.candidates[0].content.parts[0].text;
+            } else if (data.candidates?.[0]?.text) {
+                text = data.candidates[0].text;
+            } else if (data.text) {
+                text = data.text;
+            }
             
             if (text) {
                 return text;
             }
         } catch (error) {
-            console.error(`Error with model ${model}:`, error);
-            continue; // جرب الموديل التالي
+            console.error(`Network error with model ${model}:`, error);
+            // إذا كان خطأ شبكة، لا تجرب موديلات أخرى
+            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                return "مشكلة في الاتصال بالإنترنت. يرجى التحقق من اتصالك.";
+            }
+            continue;
         }
     }
     
     // إذا فشلت كل المحاولات
-    return "عذراً، حدث خطأ في الاتصال بالذكاء الاصطناعي. يرجى المحاولة مرة أخرى.";
+    return "عذراً، حدث خطأ في الاتصال بالذكاء الاصطناعي. يرجى المحاولة مرة أخرى أو التحقق من مفتاح API.";
 };
 
 // --- Components ---
