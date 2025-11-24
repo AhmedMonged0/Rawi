@@ -10,86 +10,88 @@ import { motion, AnimatePresence } from 'framer-motion';
 // --- Helper: Gemini API ---
 const generateGeminiContent = async (prompt) => {
     const apiKey = "AIzaSyB_Rsb4xsxIjOgKYvRHwdkhYrLU0rB0HVE";
-    // جرب موديلات مختلفة بالترتيب
-    const models = [
-        'gemini-1.5-flash',
-        'gemini-1.5-pro',
-        'gemini-pro',
-        'gemini-2.0-flash-exp'
-    ];
     
-    for (const model of models) {
-        try {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-            
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ 
-                    contents: [{ 
-                        parts: [{ text: prompt }] 
-                    }],
-                    generationConfig: {
-                        temperature: 0.7,
-                        topK: 40,
-                        topP: 0.95,
-                        maxOutputTokens: 1024,
-                    }
-                })
-            });
-            
-            if (!response.ok) {
-                const errorText = await response.text();
-                let errorData;
-                try {
-                    errorData = JSON.parse(errorText);
-                } catch {
-                    errorData = { error: { message: errorText } };
+    // استخدم الموديل الأكثر استقراراً
+    const model = 'gemini-1.5-flash';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                contents: [{ 
+                    parts: [{ text: prompt }] 
+                }],
+                generationConfig: {
+                    temperature: 0.7,
+                    topK: 40,
+                    topP: 0.95,
+                    maxOutputTokens: 1024,
                 }
-                console.error(`API Error for ${model}:`, errorData);
-                
-                // إذا كان الخطأ 404 (موديل غير موجود)، جرب التالي
-                if (response.status === 404) {
-                    continue;
-                }
-                
-                // إذا كان الخطأ 403 أو 401 (مشكلة في API key)، لا تجرب موديلات أخرى
-                if (response.status === 403 || response.status === 401) {
-                    return "يرجى التحقق من مفتاح API. قد يكون غير صحيح أو غير مفعّل.";
-                }
-                
-                continue;
+            })
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            let errorData;
+            try {
+                errorData = JSON.parse(errorText);
+            } catch {
+                errorData = { error: { message: errorText } };
             }
             
-            const data = await response.json();
-            
-            // معالجة مختلفة للـ response structure
-            let text = null;
-            if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-                text = data.candidates[0].content.parts[0].text;
-            } else if (data.candidates?.[0]?.text) {
-                text = data.candidates[0].text;
-            } else if (data.text) {
-                text = data.text;
+            // معالجة أخطاء محددة
+            if (response.status === 404) {
+                return "الموديل غير متاح. يرجى التحقق من اسم الموديل.";
             }
             
-            if (text) {
-                return text;
+            if (response.status === 429) {
+                return "تم تجاوز الحد المسموح من الطلبات. يرجى الانتظار قليلاً والمحاولة مرة أخرى.";
             }
-        } catch (error) {
-            console.error(`Network error with model ${model}:`, error);
-            // إذا كان خطأ شبكة، لا تجرب موديلات أخرى
-            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-                return "مشكلة في الاتصال بالإنترنت. يرجى التحقق من اتصالك.";
+            
+            if (response.status === 403 || response.status === 401) {
+                return "مشكلة في مفتاح API. يرجى التحقق من المفتاح في Google Cloud Console.";
             }
-            continue;
+            
+            if (response.status === 400) {
+                return "طلب غير صحيح. يرجى المحاولة مرة أخرى.";
+            }
+            
+            return `خطأ في الاتصال: ${response.status}. يرجى المحاولة مرة أخرى.`;
         }
+        
+        const data = await response.json();
+        
+        // استخراج النص من الـ response
+        let text = null;
+        if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+            text = data.candidates[0].content.parts[0].text;
+        } else if (data.candidates?.[0]?.text) {
+            text = data.candidates[0].text;
+        } else if (data.text) {
+            text = data.text;
+        }
+        
+        if (text) {
+            return text;
+        }
+        
+        // إذا لم يوجد نص في الـ response
+        console.error('Unexpected response structure:', data);
+        return "عذراً، لم يتم الحصول على رد من الذكاء الاصطناعي.";
+        
+    } catch (error) {
+        console.error('Network error:', error);
+        
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+            return "مشكلة في الاتصال بالإنترنت. يرجى التحقق من اتصالك.";
+        }
+        
+        return "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.";
     }
-    
-    // إذا فشلت كل المحاولات
-    return "عذراً، حدث خطأ في الاتصال بالذكاء الاصطناعي. يرجى المحاولة مرة أخرى أو التحقق من مفتاح API.";
 };
 
 // --- Components ---
