@@ -9,7 +9,7 @@ const AdminDashboard = ({ token, onLogout }) => {
     const [loading, setLoading] = useState(true);
     const [showAddBook, setShowAddBook] = useState(false);
     const [newBook, setNewBook] = useState({
-        title: '', author: '', price: '', category: '', description: '',
+        title: '', author: '', category: '', description: '',
         image_url: '', pdf_url: '', pages: '', language: 'العربية', is_new: false
     });
 
@@ -82,7 +82,8 @@ const AdminDashboard = ({ token, onLogout }) => {
                     alert('تم إضافة الكتاب بنجاح');
                 }
                 setShowAddBook(false);
-                setNewBook({ title: '', author: '', price: '', category: '', description: '', image_url: '', pdf_url: '', pages: '', language: 'العربية', is_new: false });
+                setShowAddBook(false);
+                setNewBook({ title: '', author: '', category: '', description: '', image_url: '', pdf_url: '', pages: '', language: 'العربية', is_new: false });
             } else {
                 alert(data.message || 'حدث خطأ');
             }
@@ -179,12 +180,12 @@ const AdminDashboard = ({ token, onLogout }) => {
                         <>
                             <div className="p-6 border-b border-white/10 flex justify-between items-center">
                                 <h3 className="text-xl font-bold">مكتبة الكتب</h3>
-                                <button onClick={() => { setNewBook({ title: '', author: '', price: '', category: '', description: '', image_url: '', pdf_url: '', pages: '', language: 'العربية', is_new: false }); setShowAddBook(true); }} className="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-purple-500 transition-colors"><Plus size={18} /> إضافة كتاب</button>
+                                <button onClick={() => { setNewBook({ title: '', author: '', category: '', description: '', image_url: '', pdf_url: '', pages: '', language: 'العربية', is_new: false }); setShowAddBook(true); }} className="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-purple-500 transition-colors"><Plus size={18} /> إضافة كتاب</button>
                             </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-right text-sm text-gray-300">
                                     <thead className="bg-white/5 text-gray-400">
-                                        <tr><th className="p-4">الغلاف</th><th className="p-4">العنوان</th><th className="p-4">المؤلف</th><th className="p-4">السعر</th><th className="p-4">التصنيف</th><th className="p-4">ملف PDF</th><th className="p-4">إجراءات</th></tr>
+                                        <tr><th className="p-4">الغلاف</th><th className="p-4">العنوان</th><th className="p-4">المؤلف</th><th className="p-4">التصنيف</th><th className="p-4">ملف PDF</th><th className="p-4">إجراءات</th></tr>
                                     </thead>
                                     <tbody>
                                         {loading ? <tr><td colSpan="7" className="p-8 text-center"><Loader2 className="animate-spin mx-auto" /></td></tr> : books.map(b => (
@@ -192,7 +193,6 @@ const AdminDashboard = ({ token, onLogout }) => {
                                                 <td className="p-4"><img src={b.image_url} alt="cover" className="w-10 h-14 object-cover rounded" /></td>
                                                 <td className="p-4 font-bold text-white">{b.title}</td>
                                                 <td className="p-4">{b.author}</td>
-                                                <td className="p-4 text-green-400 font-bold">{b.price}</td>
                                                 <td className="p-4"><span className="bg-white/10 px-2 py-1 rounded text-xs">{b.category}</span></td>
                                                 <td className="p-4 text-xs truncate max-w-[150px]" title={b.pdf_url}>{b.pdf_url}</td>
                                                 <td className="p-4 flex gap-2">
@@ -224,7 +224,6 @@ const AdminDashboard = ({ token, onLogout }) => {
                                     <div><label className="block text-sm text-gray-400 mb-1">المؤلف</label><input required type="text" className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-purple-500 outline-none" value={newBook.author} onChange={e => setNewBook({ ...newBook, author: e.target.value })} /></div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div><label className="block text-sm text-gray-400 mb-1">السعر</label><input required type="number" className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-purple-500 outline-none" value={newBook.price} onChange={e => setNewBook({ ...newBook, price: e.target.value })} /></div>
                                     <div><label className="block text-sm text-gray-400 mb-1">التصنيف</label><input required type="text" className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-purple-500 outline-none" value={newBook.category} onChange={e => setNewBook({ ...newBook, category: e.target.value })} /></div>
                                 </div>
                                 <div><label className="block text-sm text-gray-400 mb-1">الوصف</label><textarea required className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-purple-500 outline-none h-24" value={newBook.description} onChange={e => setNewBook({ ...newBook, description: e.target.value })}></textarea></div>

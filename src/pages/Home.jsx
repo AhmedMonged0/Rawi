@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     ShoppingBag, Search, BookOpen, X, Star, ArrowRight, Heart, Menu,
     Globe, Sparkles, MessageSquare, Send, Bot, Loader2, Check,
@@ -322,6 +323,7 @@ export default function Home() {
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const aboutSectionRef = useRef(null);
     const userMenuRef = useRef(null);
+    const navigate = useNavigate();
 
     // Load User & Fonts
     useEffect(() => {
@@ -353,6 +355,23 @@ export default function Home() {
         fetchBooks();
     }, []);
 
+    // Fetch Favorites
+    useEffect(() => {
+        if (user) {
+            const fetchFavorites = async () => {
+                try {
+                    const res = await fetch(`/api/users/${user.id}/favorites`);
+                    if (res.ok) {
+                        setWishlist(await res.json());
+                    }
+                } catch (error) {
+                    console.error(error);
+                }
+            };
+            fetchFavorites();
+        }
+    }, [user]);
+
     // Close user menu when clicking outside
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -372,7 +391,45 @@ export default function Home() {
 
     const addToast = (message) => { const id = Date.now(); setToasts(prev => [...prev, { id, message }]); setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000); };
     const addToCart = (book) => { if (!cart.find(item => item.id === book.id)) { setCart([...cart, book]); addToast(`تمت إضافة "${book.title}" للسلة`); } else { addToast(`"${book.title}" موجود بالفعل`); } };
-    const toggleWishlist = (book) => { if (wishlist.find(i => i.id === book.id)) { setWishlist(wishlist.filter(i => i.id !== book.id)); addToast("تم الحذف من المفضلة"); } else { setWishlist([...wishlist, book]); addToast("تمت الإضافة للمفضلة"); } };
+
+    const toggleWishlist = async (book) => {
+        if (!user) {
+            addToast("يرجى تسجيل الدخول لإضافة للمفضلة");
+            setIsAuthOpen(true);
+            return;
+        }
+
+        const isFav = wishlist.find(i => i.id === book.id);
+        const token = localStorage.getItem('rawi_token');
+
+        try {
+            if (isFav) {
+                const res = await fetch(`/api/favorites/${book.id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    setWishlist(wishlist.filter(i => i.id !== book.id));
+                    addToast("تم الحذف من المفضلة");
+                }
+            } else {
+                const res = await fetch('/api/favorites', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ bookId: book.id })
+                });
+                if (res.ok) {
+                    setWishlist([...wishlist, book]);
+                    addToast("تمت الإضافة للمفضلة");
+                }
+            }
+        } catch (error) {
+            addToast("حدث خطأ");
+        }
+    };
     const removeFromCart = (id) => setCart(cart.filter(i => i.id !== id));
     const scrollToAbout = () => aboutSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
     const filteredBooks = books.filter(book => (activeCategory === "الكل" || book.category === activeCategory) && (book.title.includes(searchQuery) || book.author.includes(searchQuery)));
@@ -425,7 +482,7 @@ export default function Home() {
                                     >
                                         <button
                                             onClick={() => {
-                                                setIsProfileOpen(true);
+                                                navigate('/profile');
                                                 setIsUserMenuOpen(false);
                                             }}
                                             className="w-full text-right px-4 py-3 hover:bg-white/5 text-gray-300 text-sm flex items-center gap-2 border-b border-white/5"
@@ -500,6 +557,12 @@ export default function Home() {
                                     <div className="relative aspect-[2/3] rounded-2xl overflow-hidden mb-4 shadow-2xl shadow-black/50 cursor-pointer" onClick={() => setSelectedBook(book)}>
                                         <img src={book.image_url || book.image} alt={book.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                                         {book.is_new && <div className="absolute top-3 right-3 bg-blue-500/90 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1"><Zap size={12} /> جديد</div>}
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); toggleWishlist(book); }}
+                                            className="absolute top-3 left-3 bg-black/50 p-2 rounded-full text-white hover:bg-white hover:text-red-500 transition-all z-10"
+                                        >
+                                            <Heart size={16} className={wishlist.some(i => i.id === book.id) ? "fill-red-500 text-red-500" : ""} />
+                                        </button>
                                     </div>
                                     <div className="space-y-2">
                                         <div className="flex items-center justify-between text-xs text-gray-400"><span>{book.category}</span><div className="flex items-center gap-1 text-yellow-400"><Star size={12} className="fill-yellow-400" /><span>{book.rating}</span></div></div>
