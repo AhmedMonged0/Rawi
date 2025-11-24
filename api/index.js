@@ -107,29 +107,6 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // 5. إنشاء حساب
-app.post('/api/auth/signup', async (req, res) => {
-  const { username, email, password } = req.body;
-  try {
-    const { rows } = await db.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (rows.length > 0) return res.status(400).json({ message: 'البريد مسجل مسبقاً' });
-
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    const country = req.headers['x-vercel-ip-country'] || 'Unknown';
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    await db.query(
-      'INSERT INTO users (username, email, password_hash, ip_address, country) VALUES ($1, $2, $3, $4, $5)',
-      [username, email, hashedPassword, ip, country]
-    );
-
-
-    res.status(201).json({ message: 'تم إنشاء الحساب بنجاح' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// 6. تسجيل دخول الأدمن (Hardcoded)
 app.post('/api/admin/login', async (req, res) => {
   const { username, password } = req.body;
   // بيانات الأدمن الثابتة (يمكن تغييرها لاحقاً)
