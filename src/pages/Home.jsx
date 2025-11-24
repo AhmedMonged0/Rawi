@@ -131,16 +131,13 @@ const ParticleBackground = () => {
 // --- Auth Modal ---
 const AuthModal = ({ isOpen, onClose, onLoginSuccess, addToast }) => {
     const [isLogin, setIsLogin] = useState(true);
-    const [isVerifying, setIsVerifying] = useState(false);
-    const [formData, setFormData] = useState({ username: '', email: '', password: '', code: '' });
+    const [formData, setFormData] = useState({ username: '', email: '', password: '' });
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
-
-        let endpoint = isLogin ? '/api/auth/login' : '/api/auth/signup';
-        if (isVerifying) endpoint = '/api/auth/verify';
+        const endpoint = isLogin ? '/api/auth/login' : '/api/auth/signup';
 
         try {
             const res = await fetch(endpoint, {
@@ -152,27 +149,14 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, addToast }) => {
 
             if (res.ok) {
                 addToast(data.message);
-                if (data.token) {
-                    // Login or Verify Success
+                if (isLogin) {
                     onLoginSuccess(data.user, data.token);
                     onClose();
-                    // Reset states
-                    setIsVerifying(false);
-                    setFormData({ username: '', email: '', password: '', code: '' });
-                } else if (data.needsVerification) {
-                    // Signup Success -> Move to Verification
-                    setIsVerifying(true);
-                    setFormData(prev => ({ ...prev, email: data.email })); // Ensure email is set
                 } else {
-                    // Normal Signup Success (if verification was disabled)
                     setIsLogin(true);
                 }
             } else {
                 addToast(data.message);
-                if (data.needsVerification) {
-                    setIsVerifying(true);
-                    setFormData(prev => ({ ...prev, email: data.email }));
-                }
             }
         } catch (error) {
             addToast("حدث خطأ في الاتصال بالسيرفر");
@@ -188,39 +172,18 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, addToast }) => {
             <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-[#151515] border border-purple-500/30 w-full max-w-md rounded-2xl p-8 relative shadow-2xl">
                 <button onClick={onClose} className="absolute top-4 left-4 text-gray-400 hover:text-white"><X /></button>
                 <div className="text-center mb-8">
-                    <h2 className="text-2xl font-bold text-white mb-2">
-                        {isVerifying ? 'تفعيل الحساب' : (isLogin ? 'أهلاً بعودتك' : 'انضم لعائلة راوي')}
-                    </h2>
-                    <p className="text-gray-400 text-sm">
-                        {isVerifying ? 'أدخل الكود المرسل إلى بريدك الإلكتروني' : 'بوابتك نحو المعرفة والمستقبل'}
-                    </p>
+                    <h2 className="text-2xl font-bold text-white mb-2">{isLogin ? 'أهلاً بعودتك' : 'انضم لعائلة راوي'}</h2>
+                    <p className="text-gray-400 text-sm">بوابتك نحو المعرفة والمستقبل</p>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    {isVerifying ? (
-                        <div>
-                            <label className="block text-sm text-gray-400 mb-1">كود التحقق</label>
-                            <input type="text" required maxLength="6" className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-purple-500 outline-none text-center tracking-widest text-2xl" value={formData.code} onChange={e => setFormData({ ...formData, code: e.target.value })} placeholder="123456" />
-                        </div>
-                    ) : (
-                        <>
-                            {!isLogin && (
-                                <div><label className="block text-sm text-gray-400 mb-1">الاسم</label><input type="text" required className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-purple-500 outline-none" value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value })} /></div>
-                            )}
-                            <div><label className="block text-sm text-gray-400 mb-1">البريد الإلكتروني</label><input type="email" required className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-purple-500 outline-none" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} /></div>
-                            <div><label className="block text-sm text-gray-400 mb-1">كلمة المرور</label><input type="password" required className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-purple-500 outline-none" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} /></div>
-                        </>
+                    {!isLogin && (
+                        <div><label className="block text-sm text-gray-400 mb-1">الاسم</label><input type="text" required className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-purple-500 outline-none" value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value })} /></div>
                     )}
-
-                    <button disabled={isLoading} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 py-3 rounded-lg font-bold text-white hover:opacity-90 transition-opacity flex justify-center items-center gap-2 mt-4">
-                        {isLoading ? <Loader2 className="animate-spin" /> : (isVerifying ? 'تفعيل الحساب' : (isLogin ? 'دخول' : 'إنشاء حساب'))}
-                    </button>
+                    <div><label className="block text-sm text-gray-400 mb-1">البريد الإلكتروني</label><input type="email" required className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-purple-500 outline-none" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} /></div>
+                    <div><label className="block text-sm text-gray-400 mb-1">كلمة المرور</label><input type="password" required className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-purple-500 outline-none" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} /></div>
+                    <button disabled={isLoading} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 py-3 rounded-lg font-bold text-white hover:opacity-90 transition-opacity flex justify-center items-center gap-2 mt-4">{isLoading ? <Loader2 className="animate-spin" /> : (isLogin ? 'دخول' : 'إنشاء حساب')}</button>
                 </form>
-                {!isVerifying && (
-                    <div className="mt-6 text-center text-sm text-gray-400">{isLogin ? "ليس لديك حساب؟" : "لديك حساب بالفعل؟"} <button onClick={() => setIsLogin(!isLogin)} className="text-purple-400 font-bold mr-2 hover:underline">{isLogin ? "أنشئ حساباً" : "سجل دخول"}</button></div>
-                )}
-                {isVerifying && (
-                    <div className="mt-6 text-center text-sm text-gray-400"><button onClick={() => setIsVerifying(false)} className="text-gray-500 hover:text-white underline">العودة</button></div>
-                )}
+                <div className="mt-6 text-center text-sm text-gray-400">{isLogin ? "ليس لديك حساب؟" : "لديك حساب بالفعل؟"} <button onClick={() => setIsLogin(!isLogin)} className="text-purple-400 font-bold mr-2 hover:underline">{isLogin ? "أنشئ حساباً" : "سجل دخول"}</button></div>
             </motion.div>
         </motion.div>
     );
