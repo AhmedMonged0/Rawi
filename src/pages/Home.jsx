@@ -10,19 +10,46 @@ import { motion, AnimatePresence } from 'framer-motion';
 // --- Helper: Gemini API ---
 const generateGeminiContent = async (prompt) => {
     const apiKey = "AIzaSyB_Rsb4xsxIjOgKYvRHwdkhYrLU0rB0HVE";
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-        });
-        if (!response.ok) throw new Error('Error');
-        const data = await response.json();
-        return data.candidates?.[0]?.content?.parts?.[0]?.text || "عذراً، حدث خطأ.";
-    } catch (error) {
-        return "يرجى التأكد من مفتاح API أو الاتصال بالإنترنت.";
+    // جرب موديلات مختلفة
+    const models = [
+        'gemini-2.0-flash-exp',
+        'gemini-1.5-flash',
+        'gemini-pro'
+    ];
+    
+    for (const model of models) {
+        try {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    contents: [{ 
+                        parts: [{ text: prompt }] 
+                    }] 
+                })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error('API Error:', errorData);
+                continue; // جرب الموديل التالي
+            }
+            
+            const data = await response.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            
+            if (text) {
+                return text;
+            }
+        } catch (error) {
+            console.error(`Error with model ${model}:`, error);
+            continue; // جرب الموديل التالي
+        }
     }
+    
+    // إذا فشلت كل المحاولات
+    return "عذراً، حدث خطأ في الاتصال بالذكاء الاصطناعي. يرجى المحاولة مرة أخرى.";
 };
 
 // --- Components ---
@@ -201,7 +228,6 @@ const ParticleBackground = () => {
 const Background3D = () => {
     const canvasRef = useRef(null);
     const animationFrameRef = useRef(null);
-    const mouseRef = useRef({ x: 0, y: 0 });
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -283,28 +309,13 @@ const Background3D = () => {
         const animate = () => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Mouse interaction
-            const mouseX = mouseRef.current.x;
-            const mouseY = mouseRef.current.y;
-            
             particles.forEach((p) => {
-                // Move particles
+                // Move particles automatically
                 p.z -= p.speed;
                 if (p.z <= 0) {
                     p.z = 1000;
                     p.x = Math.random() * canvas.width;
                     p.y = Math.random() * canvas.height;
-                }
-                
-                // Mouse interaction - subtle
-                if (mouseX && mouseY) {
-                    const dx = mouseX - p.x;
-                    const dy = mouseY - p.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    if (distance < 150) {
-                        p.x += (dx / distance) * 0.2;
-                        p.y += (dy / distance) * 0.2;
-                    }
                 }
             });
             
@@ -314,27 +325,13 @@ const Background3D = () => {
             animationFrameRef.current = requestAnimationFrame(animate);
         };
 
-        const handleMouseMove = (e) => {
-            mouseRef.current.x = e.clientX;
-            mouseRef.current.y = e.clientY;
-        };
-
-        const handleMouseLeave = () => {
-            mouseRef.current.x = 0;
-            mouseRef.current.y = 0;
-        };
-
         resizeCanvas();
         animate();
         
         window.addEventListener('resize', resizeCanvas);
-        window.addEventListener('mousemove', handleMouseMove);
-        window.addEventListener('mouseleave', handleMouseLeave);
 
         return () => {
             window.removeEventListener('resize', resizeCanvas);
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseleave', handleMouseLeave);
             if (animationFrameRef.current) {
                 cancelAnimationFrame(animationFrameRef.current);
             }
@@ -498,12 +495,25 @@ const AILibrarianWidget = () => {
     const messagesEndRef = useRef(null);
     useEffect(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), [messages]);
     const handleSend = async (e) => {
-        e.preventDefault(); if (!input.trim()) return;
-        const userMsg = input; setMessages(prev => [...prev, { role: 'user', text: userMsg }]); setInput(""); setIsTyping(true);
-        const context = `أنت "راوي"، أمين مكتبة ذكي ومثقف في موقع "راوي". ساعد الزوار في اختيار الكتب.`;
-        const prompt = `${context}\n\nالمستخدم: ${userMsg}\nراوي:`;
-        const reply = await generateGeminiContent(prompt);
-        setMessages(prev => [...prev, { role: 'bot', text: reply }]); setIsTyping(false);
+        e.preventDefault(); 
+        if (!input.trim() || isTyping) return;
+        
+        const userMsg = input; 
+        setMessages(prev => [...prev, { role: 'user', text: userMsg }]); 
+        setInput(""); 
+        setIsTyping(true);
+        
+        try {
+            const context = `أنت "راوي"، أمين مكتبة ذكي ومثقف في موقع "راوي". ساعد الزوار في اختيار الكتب والبحث عن المعلومات. كن مفيداً ومهذباً.`;
+            const prompt = `${context}\n\nالمستخدم: ${userMsg}\nراوي:`;
+            const reply = await generateGeminiContent(prompt);
+            setMessages(prev => [...prev, { role: 'bot', text: reply }]); 
+        } catch (error) {
+            console.error('Error sending message:', error);
+            setMessages(prev => [...prev, { role: 'bot', text: 'عذراً، حدث خطأ. يرجى المحاولة مرة أخرى.' }]); 
+        } finally {
+            setIsTyping(false);
+        }
     };
     return (
         <div className="fixed bottom-6 left-6 z-[90] flex flex-col items-start font-sans">
