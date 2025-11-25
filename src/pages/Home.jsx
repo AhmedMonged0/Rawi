@@ -8,7 +8,6 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Helper: Gemini API ---
-// --- Helper: Gemini API ---
 const generateGeminiContent = async (prompt) => {
     try {
         const response = await fetch('/api/chat', {
@@ -94,122 +93,8 @@ const AmbientBackground = () => (
     </div>
 );
 
-const ParticleBackground = () => {
-    const canvasRef = useRef(null);
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
-        let animationFrameId;
-        let particles = [];
-        let mouse = { x: null, y: null, radius: 150 };
-
-        const resizeCanvas = () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            initParticles();
-        };
-
-        const initParticles = () => {
-            particles = [];
-            const numberOfParticles = (canvas.width * canvas.height) / 10000;
-            for (let i = 0; i < numberOfParticles; i++) {
-                const size = (Math.random() * 2) + 1;
-                const x = Math.random() * canvas.width;
-                const y = Math.random() * canvas.height;
-                const directionX = (Math.random() * 1) - 0.5;
-                const directionY = (Math.random() * 1) - 0.5;
-                const color = '#8C52FF';
-
-                particles.push({ x, y, directionX, directionY, size, color });
-            }
-        };
-
-        const connect = () => {
-            for (let a = 0; a < particles.length; a++) {
-                for (let b = a; b < particles.length; b++) {
-                    let distance = ((particles[a].x - particles[b].x) * (particles[a].x - particles[b].x))
-                        + ((particles[a].y - particles[b].y) * (particles[a].y - particles[b].y));
-                    if (distance < (canvas.width / 7) * (canvas.height / 7)) {
-                        let opacityValue = 1 - (distance / 20000);
-                        if (opacityValue > 0) {
-                            ctx.strokeStyle = `rgba(140, 82, 255, ${opacityValue * 0.5})`;
-                            ctx.lineWidth = 1;
-                            ctx.beginPath();
-                            ctx.moveTo(particles[a].x, particles[a].y);
-                            ctx.lineTo(particles[b].x, particles[b].y);
-                            ctx.stroke();
-                        }
-                    }
-                }
-            }
-        };
-
-        const animate = () => {
-            animationFrameId = requestAnimationFrame(animate);
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            for (let i = 0; i < particles.length; i++) {
-                // Mouse interaction
-                if (mouse.x != null) {
-                    let dx = mouse.x - particles[i].x;
-                    let dy = mouse.y - particles[i].y;
-                    let distance = Math.sqrt(dx * dx + dy * dy);
-                    if (distance < mouse.radius) {
-                        const forceDirectionX = dx / distance;
-                        const forceDirectionY = dy / distance;
-                        const force = (mouse.radius - distance) / mouse.radius;
-                        const directionX = forceDirectionX * force * 3;
-                        const directionY = forceDirectionY * force * 3;
-                        particles[i].x -= directionX;
-                        particles[i].y -= directionY;
-                    }
-                }
-
-                particles[i].x += particles[i].directionX;
-                particles[i].y += particles[i].directionY;
-
-                // Boundary check
-                if (particles[i].x > canvas.width || particles[i].x < 0) particles[i].directionX = -particles[i].directionX;
-                if (particles[i].y > canvas.height || particles[i].y < 0) particles[i].directionY = -particles[i].directionY;
-
-                // Draw particle
-                ctx.beginPath();
-                ctx.arc(particles[i].x, particles[i].y, particles[i].size, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-                ctx.fill();
-            }
-            connect();
-        };
-
-        const handleMouseMove = (e) => {
-            mouse.x = e.x;
-            mouse.y = e.y;
-        };
-        const handleMouseOut = () => {
-            mouse.x = null;
-            mouse.y = null;
-        };
-
-        window.addEventListener('resize', resizeCanvas);
-        window.addEventListener('mousemove', handleMouseMove);
-        window.addEventListener('mouseout', handleMouseOut);
-
-        resizeCanvas();
-        animate();
-
-        return () => {
-            window.removeEventListener('resize', resizeCanvas);
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseout', handleMouseOut);
-            cancelAnimationFrame(animationFrameId);
-        };
-    }, []);
-
-    return <canvas ref={canvasRef} className="fixed top-0 left-0 w-full h-full -z-10 bg-[#050505]" />;
-};
-
-// 3D Background Component - تأثير بسيط وواضح
-const Background3D = () => {
+// Code Matrix Background - خلفية برمجية تفاعلية
+const CodeMatrixBackground = () => {
     const canvasRef = useRef(null);
     const animationFrameRef = useRef(null);
 
@@ -218,93 +103,78 @@ const Background3D = () => {
         if (!canvas) return;
 
         const ctx = canvas.getContext('2d');
-        let particles = [];
-        const particleCount = 60;
+        let symbols = [];
+        const symbolCount = 80;
+        const codeSnippets = ['{ }', '</>', '&&', '||', '[ ]', '( )', '=>', 'func', 'const', 'if', 'return', ';', '$', '#', '!='];
 
         const resizeCanvas = () => {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            initParticles();
+            initSymbols();
         };
 
-        const initParticles = () => {
-            particles = [];
-            for (let i = 0; i < particleCount; i++) {
-                particles.push({
+        const initSymbols = () => {
+            symbols = [];
+            for (let i = 0; i < symbolCount; i++) {
+                symbols.push({
                     x: Math.random() * canvas.width,
                     y: Math.random() * canvas.height,
-                    z: Math.random() * 1000,
-                    size: Math.random() * 2 + 1,
-                    speed: Math.random() * 0.3 + 0.05,
-                    color: Math.random() > 0.5 ? 'rgba(147, 51, 234, 0.6)' : 'rgba(59, 130, 246, 0.6)',
+                    z: Math.random() * 1000, // Depth
+                    text: codeSnippets[Math.floor(Math.random() * codeSnippets.length)],
+                    size: Math.random() * 14 + 10,
+                    speed: Math.random() * 0.5 + 0.1,
+                    color: Math.random() > 0.5 ? '#8b5cf6' : '#3b82f6', // Purple or Blue
+                    opacity: Math.random() * 0.5 + 0.1
                 });
             }
         };
 
-        const drawParticle = (p) => {
-            const scale = 600 / (600 + p.z);
-            const x = (p.x - canvas.width / 2) * scale + canvas.width / 2;
-            const y = (p.y - canvas.height / 2) * scale + canvas.height / 2;
-            const size = p.size * scale;
+        const drawSymbol = (s, mouseX, mouseY) => {
+            // 3D Perspective
+            const scale = 800 / (800 + s.z);
+            const x2d = (s.x - canvas.width / 2) * scale + canvas.width / 2;
+            const y2d = (s.y - canvas.height / 2) * scale + canvas.height / 2;
 
-            // Draw particle with subtle glow
-            ctx.beginPath();
-            ctx.arc(x, y, size, 0, Math.PI * 2);
-            ctx.fillStyle = p.color;
-            ctx.fill();
+            // Mouse Interaction (Parallax & Repulsion)
+            let dx = 0, dy = 0;
+            if (mouseX) {
+                dx = (mouseX - canvas.width / 2) * 0.05 * scale;
+                dy = (mouseY - canvas.height / 2) * 0.05 * scale;
+            }
 
-            // Subtle glow
-            ctx.shadowBlur = 8;
-            ctx.shadowColor = p.color;
-            ctx.fill();
-            ctx.shadowBlur = 0;
+            ctx.font = `bold ${s.size * scale}px monospace`;
+            ctx.fillStyle = s.color;
+            ctx.globalAlpha = s.opacity * scale; // Fade out in distance
+            ctx.fillText(s.text, x2d - dx, y2d - dy);
+            ctx.globalAlpha = 1.0;
         };
 
-        const connectParticles = () => {
-            for (let i = 0; i < particles.length; i++) {
-                for (let j = i + 1; j < particles.length; j++) {
-                    const dx = particles[i].x - particles[j].x;
-                    const dy = particles[i].y - particles[j].y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-
-                    // Connect nearby particles like cells
-                    if (distance < 120) {
-                        const scale1 = 600 / (600 + particles[i].z);
-                        const scale2 = 600 / (600 + particles[j].z);
-                        const x1 = (particles[i].x - canvas.width / 2) * scale1 + canvas.width / 2;
-                        const y1 = (particles[i].y - canvas.height / 2) * scale1 + canvas.height / 2;
-                        const x2 = (particles[j].x - canvas.width / 2) * scale2 + canvas.width / 2;
-                        const y2 = (particles[j].y - canvas.height / 2) * scale2 + canvas.height / 2;
-
-                        // Calculate opacity based on distance
-                        const opacity = 0.3 * (1 - distance / 120);
-
-                        ctx.beginPath();
-                        ctx.moveTo(x1, y1);
-                        ctx.lineTo(x2, y2);
-                        ctx.strokeStyle = `rgba(147, 51, 234, ${opacity})`;
-                        ctx.lineWidth = 1;
-                        ctx.stroke();
-                    }
-                }
-            }
+        let mouseX = 0, mouseY = 0;
+        const handleMouseMove = (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
         };
 
         const animate = () => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            particles.forEach((p) => {
-                // Move particles automatically
-                p.z -= p.speed;
-                if (p.z <= 0) {
-                    p.z = 1000;
-                    p.x = Math.random() * canvas.width;
-                    p.y = Math.random() * canvas.height;
-                }
-            });
+            // Background Gradient (Subtle)
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#050505');
+            gradient.addColorStop(1, '#0a0a0a');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            connectParticles();
-            particles.forEach(drawParticle);
+            symbols.forEach((s) => {
+                // Move forward
+                s.z -= s.speed;
+                if (s.z <= 0) {
+                    s.z = 1000;
+                    s.x = Math.random() * canvas.width;
+                    s.y = Math.random() * canvas.height;
+                }
+                drawSymbol(s, mouseX, mouseY);
+            });
 
             animationFrameRef.current = requestAnimationFrame(animate);
         };
@@ -313,9 +183,11 @@ const Background3D = () => {
         animate();
 
         window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('mousemove', handleMouseMove);
 
         return () => {
             window.removeEventListener('resize', resizeCanvas);
+            window.removeEventListener('mousemove', handleMouseMove);
             if (animationFrameRef.current) {
                 cancelAnimationFrame(animationFrameRef.current);
             }
@@ -323,12 +195,8 @@ const Background3D = () => {
     }, []);
 
     return (
-        <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 bg-[#0a0a0a]">
-            {/* 3D Particles Canvas - شبكة الخلايا */}
-            <canvas
-                ref={canvasRef}
-                className="absolute inset-0 w-full h-full"
-            />
+        <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 bg-[#050505]">
+            <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
         </div>
     );
 };
@@ -577,6 +445,14 @@ export default function Home() {
     const addToast = (message) => { const id = Date.now(); setToasts(prev => [...prev, { id, message }]); setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000); };
     const addToCart = (book) => { if (!cart.find(item => item.id === book.id)) { setCart([...cart, book]); addToast(`تمت إضافة "${book.title}" للسلة`); } else { addToast(`"${book.title}" موجود بالفعل`); } };
 
+    const handleLogout = () => {
+        localStorage.removeItem('rawi_user');
+        localStorage.removeItem('rawi_token');
+        setUser(null);
+        addToast("تم تسجيل الخروج بنجاح");
+        window.location.href = "/";
+    };
+
     const toggleWishlist = async (book) => {
         if (!user) {
             addToast("يرجى تسجيل الدخول لإضافة للمفضلة");
@@ -626,6 +502,7 @@ export default function Home() {
                         handleLogout();
                     } else {
                         addToast(data.message || "فشل الإضافة للمفضلة");
+                        addToast("حدث خطأ في الاتصال");
                     }
                 }
             }
@@ -634,29 +511,37 @@ export default function Home() {
             addToast("حدث خطأ في الاتصال");
         }
     };
-    const removeFromCart = (id) => setCart(cart.filter(i => i.id !== id));
-    const scrollToAbout = () => aboutSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-    const filteredBooks = books.filter(book => (activeCategory === "الكل" || book.category === activeCategory) && (book.title.includes(searchQuery) || book.author.includes(searchQuery)));
-    const total = cart.reduce((sum, item) => Number(sum) + Number(item.price), 0);
 
-    // Auth Handlers
-    const handleLoginSuccess = (userData, token) => {
-        setUser(userData);
-        localStorage.setItem('rawi_user', JSON.stringify(userData));
-        localStorage.setItem('rawi_token', token);
+    const filteredBooks = books.filter(book => {
+        const matchesCategory = activeCategory === "الكل" || book.category === activeCategory;
+        const matchesSearch = book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            book.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            book.category.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesCategory && matchesSearch;
+    });
+
+    const total = cart.reduce((sum, item) => sum + item.price, 0);
+
+    const removeFromCart = (id) => {
+        setCart(cart.filter(item => item.id !== id));
+        addToast("تم حذف الكتاب من السلة");
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem('rawi_user');
-        localStorage.removeItem('rawi_token');
-        setUser(null);
-        addToast("تم تسجيل الخروج بنجاح");
-        window.location.href = "/";
+    const handleLoginSuccess = (userData) => {
+        setUser(userData);
+        setIsAuthOpen(false);
+        addToast("تم تسجيل الدخول بنجاح!");
+    };
+
+    const scrollToAbout = () => {
+        aboutSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
     return (
         <div className="min-h-screen text-white font-['Tajawal'] selection:bg-purple-500/30 overflow-x-hidden relative" style={{ background: '#0a0a0a' }} dir="rtl">
-            <Background3D />
+            <CodeMatrixBackground />
+            <AmbientBackground />
+            <ClickRippleEffect />
             <div className="relative z-10">
                 <ToastContainer toasts={toasts} />
 
@@ -713,7 +598,12 @@ export default function Home() {
                             </button>
                         )}
 
-                        {/* Cart Button Removed */}
+                        {/* Cart Button */}
+                        <button onClick={() => setIsCartOpen(true)} className="relative hover:text-purple-400 transition-colors hover:scale-110 active:scale-95 transform">
+                            <ShoppingBag size={20} />
+                            {cart.length > 0 && <span className="absolute -top-2 -right-2 bg-purple-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">{cart.length}</span>}
+                        </button>
+
                         <button className="md:hidden" onClick={() => setIsMenuOpen(!isMenuOpen)}><Menu size={24} /></button>
                     </div>
                 </nav>
