@@ -574,7 +574,7 @@ export default function Home() {
 
     // Fetch Favorites
     useEffect(() => {
-        if (user) {
+        if (user && user.id) {
             const fetchFavorites = async () => {
                 try {
                     const res = await fetch(`/api/users/${user.id}/favorites`);
