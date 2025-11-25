@@ -186,335 +186,301 @@ app.get('/api/books/:id', async (req, res) => {
 app.post('/api/books', async (req, res) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
 
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
+  // تعديل كتاب (للأدمن فقط)
+  app.put('/api/books/:id', async (req, res) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
 
-    const { title, author, category, description, image_url, pdf_url, pages, language, is_new } = req.body;
-    const { rows } = await db.query(
-      `INSERT INTO books (title, author, category, description, image_url, pdf_url, pages, language, is_new)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [title, author, category, description, image_url, pdf_url, pages, language || 'العربية', is_new || false]
-    );
-    res.status(201).json(rows[0]);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+    // حذف كتاب (للأدمن فقط)
+    app.delete('/api/books/:id', async (req, res) => {
+      const authHeader = req.headers['authorization'];
+      const token = authHeader && authHeader.split(' ')[1];
+      if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
 
-// تعديل كتاب (للأدمن فقط)
-app.put('/api/books/:id', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
 
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
-
-    const { title, author, category, description, image_url, pdf_url, pages, language, is_new } = req.body;
-    const { rows } = await db.query(
-      `UPDATE books SET title=$1, author=$2, category=$3, description=$4, image_url=$5, pdf_url=$6, pages=$7, language=$8, is_new=$9
-       WHERE id=$10 RETURNING *`,
-      [title, author, category, description, image_url, pdf_url, pages, language, is_new, req.params.id]
-    );
-    res.json(rows[0]);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// حذف كتاب (للأدمن فقط)
-app.delete('/api/books/:id', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
-
-    await db.query('DELETE FROM books WHERE id = $1', [req.params.id]);
-    res.json({ message: 'تم حذف الكتاب' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// 4. تسجيل الدخول
-app.post('/api/auth/login', async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    const { rows } = await db.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (rows.length === 0) return res.status(401).json({ message: 'البريد غير مسجل' });
-
-    const user = rows[0];
-    const isValid = await bcrypt.compare(password, user.password_hash);
-    if (!isValid) return res.status(401).json({ message: 'كلمة المرور غير صحيحة' });
-
-    // تحديث الـ IP والدولة عند تسجيل الدخول
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    const country = req.headers['x-vercel-ip-country'] || 'Unknown';
-    await db.query('UPDATE users SET ip_address = $1, country = $2 WHERE id = $3', [ip, country, user.id]);
-
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
-
-    res.json({
-      message: 'تم الدخول بنجاح',
-      token,
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        avatar_url: user.avatar_url
+        await db.query('DELETE FROM books WHERE id = $1', [req.params.id]);
+        res.json({ message: 'تم حذف الكتاب' });
+      } catch (error) {
+        res.status(500).json({ message: error.message });
       }
     });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
 
-// 5. إنشاء حساب
-app.post('/api/auth/signup', async (req, res) => {
-  const { username, email, password } = req.body;
-  try {
-    const { rows } = await db.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (rows.length > 0) return res.status(400).json({ message: 'البريد مسجل مسبقاً' });
+    // 4. تسجيل الدخول
+    app.post('/api/auth/login', async (req, res) => {
+      const { email, password } = req.body;
+      try {
+        const { rows } = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+        if (rows.length === 0) return res.status(401).json({ message: 'البريد غير مسجل' });
 
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    const country = req.headers['x-vercel-ip-country'] || 'Unknown';
+        const user = rows[0];
+        const isValid = await bcrypt.compare(password, user.password_hash);
+        if (!isValid) return res.status(401).json({ message: 'كلمة المرور غير صحيحة' });
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    await db.query(
-      'INSERT INTO users (username, email, password_hash, ip_address, country) VALUES ($1, $2, $3, $4, $5)',
-      [username, email, hashedPassword, ip, country]
-    );
+        // تحديث الـ IP والدولة عند تسجيل الدخول
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+        const country = req.headers['x-vercel-ip-country'] || 'Unknown';
+        await db.query('UPDATE users SET ip_address = $1, country = $2 WHERE id = $3', [ip, country, user.id]);
 
-    res.status(201).json({ message: 'تم إنشاء الحساب بنجاح' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+        const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
 
-// 6. تسجيل دخول الأدمن (Hardcoded)
-app.post('/api/admin/login', async (req, res) => {
-  const { username, password } = req.body;
-  try {
-    const { rows } = await db.query('SELECT * FROM users WHERE username = $1', [username]);
-    if (rows.length === 0) return res.status(401).json({ message: 'اسم المستخدم غير موجود' });
+        res.json({
+          message: 'تم الدخول بنجاح',
+          token,
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            avatar_url: user.avatar_url
+          }
+        });
+      } catch (error) {
+        res.status(500).json({ message: error.message });
+      }
+    });
 
-    const adminUser = rows[0];
-    if (adminUser.role !== 'admin') return res.status(403).json({ message: 'هذا الحساب ليس له صلاحيات أدمن' });
+    // 5. إنشاء حساب
+    app.post('/api/auth/signup', async (req, res) => {
+      const { username, email, password } = req.body;
+      try {
+        const { rows } = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+        if (rows.length > 0) return res.status(400).json({ message: 'البريد مسجل مسبقاً' });
 
-    const isValid = await bcrypt.compare(password, adminUser.password_hash);
-    if (!isValid) return res.status(401).json({ message: 'كلمة المرور غير صحيحة' });
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+        const country = req.headers['x-vercel-ip-country'] || 'Unknown';
 
-    const token = jwt.sign({ id: adminUser.id, email: adminUser.email, role: adminUser.role }, JWT_SECRET, { expiresIn: '24h' });
-    res.json({ message: 'أهلاً بك يا مدير! 🕴️', token });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+        const hashedPassword = await bcrypt.hash(password, 10);
+        await db.query(
+          'INSERT INTO users (username, email, password_hash, ip_address, country) VALUES ($1, $2, $3, $4, $5)',
+          [username, email, hashedPassword, ip, country]
+        );
 
-// 7. جلب المستخدمين (للأدمن فقط)
-app.get('/api/admin/users', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+        res.status(201).json({ message: 'تم إنشاء الحساب بنجاح' });
+      } catch (error) {
+        res.status(500).json({ message: error.message });
+      }
+    });
 
-  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+    // 6. تسجيل دخول الأدمن (Hardcoded)
+    app.post('/api/admin/login', async (req, res) => {
+      const { username, password } = req.body;
+      try {
+        const { rows } = await db.query('SELECT * FROM users WHERE username = $1', [username]);
+        if (rows.length === 0) return res.status(401).json({ message: 'اسم المستخدم غير موجود' });
 
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
+        const adminUser = rows[0];
+        if (adminUser.role !== 'admin') return res.status(403).json({ message: 'هذا الحساب ليس له صلاحيات أدمن' });
 
-    const { rows } = await db.query('SELECT id, username, email, role, created_at, ip_address, country FROM users ORDER BY created_at DESC');
-    res.json(rows);
+        const isValid = await bcrypt.compare(password, adminUser.password_hash);
+        if (!isValid) return res.status(401).json({ message: 'كلمة المرور غير صحيحة' });
 
-  } catch (error) {
-    res.status(403).json({ message: 'توكن غير صالح' });
-  }
-});
+        const token = jwt.sign({ id: adminUser.id, email: adminUser.email, role: adminUser.role }, JWT_SECRET, { expiresIn: '24h' });
+        res.json({ message: 'أهلاً بك يا مدير! 🕴️', token });
+      } catch (error) {
+        res.status(500).json({ message: error.message });
+      }
+    });
 
-// 8. حذف مستخدم (للأدمن فقط)
-app.delete('/api/admin/users/:id', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+    // 7. جلب المستخدمين (للأدمن فقط)
+    app.get('/api/admin/users', async (req, res) => {
+      const authHeader = req.headers['authorization'];
+      const token = authHeader && authHeader.split(' ')[1];
 
-  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+      if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
 
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
 
-    const userIdToDelete = req.params.id;
-    // TODO: Implement delete logic if needed
-    await db.query('DELETE FROM users WHERE id = $1', [userIdToDelete]);
-    res.json({ message: 'تم حذف المستخدم' });
+        const { rows } = await db.query('SELECT id, username, email, role, created_at, ip_address, country FROM users ORDER BY created_at DESC');
+        res.json(rows);
 
-  } catch (error) {
-    res.status(500).send('Error deleting user: ' + error.message);
-  }
-});
+      } catch (error) {
+        res.status(403).json({ message: 'توكن غير صالح' });
+      }
+    });
 
-// 9. المفضلة
-// إضافة للمفضلة
-app.post('/api/favorites', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+    // 8. حذف مستخدم (للأدمن فقط)
+    app.delete('/api/admin/users/:id', async (req, res) => {
+      const authHeader = req.headers['authorization'];
+      const token = authHeader && authHeader.split(' ')[1];
 
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const { bookId } = req.body;
+      if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
 
-    await db.query(
-      'INSERT INTO favorites (user_id, book_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-      [decoded.id, bookId]
-    );
-    console.log(`User ${decoded.id} added book ${bookId} to favorites.`);
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
 
-    res.json({ message: 'تمت الإضافة للمفضلة' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+        const userIdToDelete = req.params.id;
+        // TODO: Implement delete logic if needed
+        await db.query('DELETE FROM users WHERE id = $1', [userIdToDelete]);
+        res.json({ message: 'تم حذف المستخدم' });
 
-// حذف من المفضلة
-app.delete('/api/favorites/:bookId', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+      } catch (error) {
+        res.status(500).send('Error deleting user: ' + error.message);
+      }
+    });
 
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    // 9. المفضلة
+    // إضافة للمفضلة
+    app.post('/api/favorites', async (req, res) => {
+      const authHeader = req.headers['authorization'];
+      const token = authHeader && authHeader.split(' ')[1];
+      if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
 
-    await db.query(
-      'DELETE FROM favorites WHERE user_id = $1 AND book_id = $2',
-      [decoded.id, req.params.bookId]
-    );
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const { bookId } = req.body;
 
-    res.json({ message: 'تم الحذف من المفضلة' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+        await db.query(
+          'INSERT INTO favorites (user_id, book_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [decoded.id, bookId]
+        );
+        console.log(`User ${decoded.id} added book ${bookId} to favorites.`);
 
-// جلب مفضلة المستخدم
-app.get('/api/users/:id/favorites', async (req, res) => {
-  try {
-    const { rows } = await db.query(`
+        res.json({ message: 'تمت الإضافة للمفضلة' });
+      } catch (error) {
+        res.status(500).json({ message: error.message });
+      }
+    });
+
+    // حذف من المفضلة
+    app.delete('/api/favorites/:bookId', async (req, res) => {
+      const authHeader = req.headers['authorization'];
+      const token = authHeader && authHeader.split(' ')[1];
+      if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+
+        await db.query(
+          'DELETE FROM favorites WHERE user_id = $1 AND book_id = $2',
+          [decoded.id, req.params.bookId]
+        );
+
+        res.json({ message: 'تم الحذف من المفضلة' });
+      } catch (error) {
+        res.status(500).json({ message: error.message });
+      }
+    });
+
+    // جلب مفضلة المستخدم
+    app.get('/api/users/:id/favorites', async (req, res) => {
+      try {
+        const { rows } = await db.query(`
       SELECT b.* FROM books b
       JOIN favorites f ON b.id = f.book_id
       WHERE f.user_id = $1
     `, [req.params.id]);
 
-    res.json(rows);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+        res.json(rows);
+      } catch (error) {
+        res.status(500).json({ message: error.message });
+      }
+    });
 
-// 10. تحديث الملف الشخصي
-app.put('/api/users/profile', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+    // 10. تحديث الملف الشخصي
+    app.put('/api/users/profile', async (req, res) => {
+      const authHeader = req.headers['authorization'];
+      const token = authHeader && authHeader.split(' ')[1];
+      if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
 
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const { username, avatar_url } = req.body;
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const { username, avatar_url } = req.body;
 
-    const { rows } = await db.query(
-      'UPDATE users SET username = $1, avatar_url = $2 WHERE id = $3 RETURNING id, username, email, role, avatar_url',
-      [username, avatar_url, decoded.id]
-    );
+        const { rows } = await db.query(
+          'UPDATE users SET username = $1, avatar_url = $2 WHERE id = $3 RETURNING id, username, email, role, avatar_url',
+          [username, avatar_url, decoded.id]
+        );
 
-    res.json(rows[0]);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+        res.json(rows[0]);
+      } catch (error) {
+        res.status(500).json({ message: error.message });
+      }
+    });
 
-// 11. Gemini Chat Endpoint
-app.post('/api/chat', async (req, res) => {
-  const { prompt } = req.body;
-  // Check for both spellings just in case
-  const apiKey = process.env.GEMENI_API_KEY || process.env.GEMINI_API_KEY;
+    // 11. Gemini Chat Endpoint
+    app.post('/api/chat', async (req, res) => {
+      const { prompt } = req.body;
+      // Check for both spellings just in case
+      const apiKey = process.env.GEMENI_API_KEY || process.env.GEMINI_API_KEY;
 
-  if (!apiKey) {
-    console.error('API Key missing on server');
-    return res.status(500).json({ error: 'API key not configured on server (Check GEMENI_API_KEY)' });
-  }
+      if (!apiKey) {
+        console.error('API Key missing on server');
+        return res.status(500).json({ error: 'API key not configured on server (Check GEMENI_API_KEY)' });
+      }
 
-  const models = [
-    'gemini-1.5-flash',
-    'gemini-1.5-pro',
-    'gemini-pro',
-    'gemini-flash-latest'
-  ];
+      const models = [
+        'gemini-1.5-flash',
+        'gemini-1.5-pro',
+        'gemini-pro',
+        'gemini-flash-latest'
+      ];
 
-  let lastError = null;
+      let lastError = null;
 
-  for (const model of models) {
-    try {
-      console.log(`Attempting model: ${model}`);
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: prompt }]
-          }]
-        })
-      });
+      for (const model of models) {
+        try {
+          console.log(`Attempting model: ${model}`);
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              contents: [{
+                parts: [{ text: prompt }]
+              }]
+            })
+          });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`API Error for ${model}: ${response.status} - ${errorText}`);
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`API Error for ${model}: ${response.status} - ${errorText}`);
 
-        if (response.status === 404) {
-          lastError = `Model ${model} not found`;
+            if (response.status === 404) {
+              lastError = `Model ${model} not found`;
+              continue;
+            }
+            if (response.status === 429) {
+              return res.status(429).json({ error: "تم تجاوز الحد المسموح من الطلبات. يرجى الانتظار قليلاً والمحاولة مرة أخرى." });
+            }
+
+            lastError = `API Error: ${response.status} - ${errorText}`;
+            continue;
+          }
+
+          const data = await response.json();
+          let text = null;
+          if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+            text = data.candidates[0].content.parts[0].text;
+          } else if (data.candidates?.[0]?.text) {
+            text = data.candidates[0].text;
+          } else if (data.text) {
+            text = data.text;
+          }
+
+          if (text) {
+            return res.json({ text });
+          } else {
+            lastError = 'No text found in response';
+          }
+
+        } catch (error) {
+          console.error(`Error with model ${model}:`, error);
+          lastError = error.message;
           continue;
         }
-        if (response.status === 429) {
-          return res.status(429).json({ error: "تم تجاوز الحد المسموح من الطلبات. يرجى الانتظار قليلاً والمحاولة مرة أخرى." });
-        }
-
-        lastError = `API Error: ${response.status} - ${errorText}`;
-        continue;
       }
 
-      const data = await response.json();
-      let text = null;
-      if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-        text = data.candidates[0].content.parts[0].text;
-      } else if (data.candidates?.[0]?.text) {
-        text = data.candidates[0].text;
-      } else if (data.text) {
-        text = data.text;
-      }
+      console.error('All models failed. Last error:', lastError);
+      res.status(500).json({ error: `فشل الاتصال بجميع الموديلات. الخطأ الأخير: ${lastError}` });
+    });
 
-      if (text) {
-        return res.json({ text });
-      } else {
-        lastError = 'No text found in response';
-      }
-
-    } catch (error) {
-      console.error(`Error with model ${model}:`, error);
-      lastError = error.message;
-      continue;
-    }
-  }
-
-  console.error('All models failed. Last error:', lastError);
-  res.status(500).json({ error: `فشل الاتصال بجميع الموديلات. الخطأ الأخير: ${lastError}` });
-});
-
-export default app;
+    export default app;
