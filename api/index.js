@@ -68,6 +68,23 @@ app.get('/api/init-db', async (req, res) => {
         pdf_url TEXT,
         pages INTEGER,
         language VARCHAR(50) DEFAULT 'العربية',
+        is_new BOOLEAN DEFAULT FALSE,
+        rating DECIMAL(2,1) DEFAULT 5.0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // تحديث أعمدة الكتب لتدعم Base64
+    try { await db.query(`ALTER TABLE books ALTER COLUMN image_url TYPE TEXT`); } catch (e) { schemaErrors.push('alter books image_url: ' + e.message); }
+    try { await db.query(`ALTER TABLE books ALTER COLUMN pdf_url TYPE TEXT`); } catch (e) { schemaErrors.push('alter books pdf_url: ' + e.message); }
+
+    // حذف عمود السعر القديم (إذا كان موجوداً)
+    try { await db.query(`ALTER TABLE books DROP COLUMN IF EXISTS price`); } catch (e) { schemaErrors.push('drop price: ' + e.message); }
+
+    // جدول المفضلة
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS favorites (
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         book_id INTEGER REFERENCES books(id) ON DELETE CASCADE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (user_id, book_id)
@@ -180,6 +197,9 @@ app.post('/api/books', async (req, res) => {
 
     const { title, author, category, description, image_url, pdf_url, pages, language, is_new } = req.body;
     const pagesInt = pages ? parseInt(pages) : 0;
+
+    // محاولة حذف عمود السعر إذا كان موجوداً قبل الإضافة (كحل احتياطي)
+    try { await db.query(`ALTER TABLE books DROP COLUMN IF EXISTS price`); } catch (e) { console.log('Auto-drop price error:', e.message); }
 
     const { rows } = await db.query(
       `INSERT INTO books (title, author, category, description, image_url, pdf_url, pages, language, is_new)
