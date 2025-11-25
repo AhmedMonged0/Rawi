@@ -74,6 +74,10 @@ app.get('/api/init-db', async (req, res) => {
       );
     `);
 
+    // تحديث أعمدة الكتب لتدعم Base64
+    try { await db.query(`ALTER TABLE books ALTER COLUMN image_url TYPE TEXT`); } catch (e) { schemaErrors.push('alter books image_url: ' + e.message); }
+    try { await db.query(`ALTER TABLE books ALTER COLUMN pdf_url TYPE TEXT`); } catch (e) { schemaErrors.push('alter books pdf_url: ' + e.message); }
+
     // جدول المفضلة
     await db.query(`
       CREATE TABLE IF NOT EXISTS favorites (
@@ -151,7 +155,7 @@ app.get('/api/init-db', async (req, res) => {
       adminStatus = 'Admin user UPDATED';
     }
 
-    res.send(`Database initialized! ${adminStatus}`);
+    res.send(`Database initialized! ${adminStatus} Errors: ${JSON.stringify(schemaErrors)}`);
   } catch (error) {
     res.status(500).send('Error initializing database: ' + error.message);
   }
@@ -347,9 +351,11 @@ app.delete('/api/admin/users/:id', async (req, res) => {
 
     const userIdToDelete = req.params.id;
     // TODO: Implement delete logic if needed
+    await db.query('DELETE FROM users WHERE id = $1', [userIdToDelete]);
+    res.json({ message: 'تم حذف المستخدم' });
 
   } catch (error) {
-    res.status(500).send('Error initializing database: ' + error.message);
+    res.status(500).send('Error deleting user: ' + error.message);
   }
 });
 
@@ -403,7 +409,7 @@ app.get('/api/users/:id/favorites', async (req, res) => {
       SELECT b.* FROM books b
       JOIN favorites f ON b.id = f.book_id
       WHERE f.user_id = $1
-  `, [req.params.id]);
+    `, [req.params.id]);
 
     res.json(rows);
   } catch (error) {

@@ -230,17 +230,63 @@ const AdminDashboard = ({ token, onLogout }) => {
 
                                 <div className="p-4 bg-purple-500/10 rounded-xl border border-purple-500/20">
                                     <h4 className="text-purple-400 font-bold mb-3 text-sm flex items-center gap-2"><FileText size={16} /> ملفات الكتاب</h4>
-                                    <div className="space-y-3">
-                                        <div>
-                                            <label className="block text-xs text-gray-400 mb-1">رابط الغلاف (أو مسار محلي مثل /covers/book1.jpg)</label>
-                                            <div className="flex gap-2">
-                                                <input required type="text" className="flex-1 bg-black/50 border border-white/10 rounded-lg p-2 text-white text-sm focus:border-purple-500 outline-none" value={newBook.image_url} onChange={e => setNewBook({ ...newBook, image_url: e.target.value })} placeholder="https://... or /covers/img.jpg" />
-                                                <div className="w-10 h-10 bg-white/5 rounded flex items-center justify-center overflow-hidden border border-white/10">{newBook.image_url ? <img src={newBook.image_url} className="w-full h-full object-cover" /> : <ImageIcon size={16} className="text-gray-600" />}</div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Cover Image Upload */}
+                                        <div className="border-2 border-dashed border-white/10 rounded-xl p-4 text-center hover:border-purple-500/50 transition-colors relative group">
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={(e) => {
+                                                    const file = e.target.files[0];
+                                                    if (file) {
+                                                        const reader = new FileReader();
+                                                        reader.onloadend = () => {
+                                                            setNewBook({ ...newBook, image_url: reader.result });
+                                                        };
+                                                        reader.readAsDataURL(file);
+                                                    }
+                                                }}
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                            />
+                                            <div className="flex flex-col items-center gap-2">
+                                                {newBook.image_url ? (
+                                                    <div className="relative w-20 h-28 rounded overflow-hidden border border-white/20">
+                                                        <img src={newBook.image_url} className="w-full h-full object-cover" alt="Cover" />
+                                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <ImageIcon size={20} className="text-white" />
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center">
+                                                        <ImageIcon size={24} className="text-gray-400" />
+                                                    </div>
+                                                )}
+                                                <p className="text-xs text-gray-400">{newBook.image_url ? 'تغيير الغلاف' : 'رفع غلاف الكتاب'}</p>
                                             </div>
                                         </div>
-                                        <div>
-                                            <label className="block text-xs text-gray-400 mb-1">رابط PDF (أو مسار محلي مثل /books/book1.pdf)</label>
-                                            <input required type="text" className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white text-sm focus:border-purple-500 outline-none" value={newBook.pdf_url} onChange={e => setNewBook({ ...newBook, pdf_url: e.target.value })} placeholder="/books/mybook.pdf" />
+
+                                        {/* PDF Upload */}
+                                        <div className="border-2 border-dashed border-white/10 rounded-xl p-4 text-center hover:border-purple-500/50 transition-colors relative group flex flex-col items-center justify-center">
+                                            <input
+                                                type="file"
+                                                accept="application/pdf"
+                                                onChange={(e) => {
+                                                    const file = e.target.files[0];
+                                                    if (file) {
+                                                        const reader = new FileReader();
+                                                        reader.onloadend = () => {
+                                                            setNewBook({ ...newBook, pdf_url: reader.result });
+                                                        };
+                                                        reader.readAsDataURL(file);
+                                                    }
+                                                }}
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                            />
+                                            <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center mb-2">
+                                                <FileText size={24} className={newBook.pdf_url ? "text-green-500" : "text-gray-400"} />
+                                            </div>
+                                            <p className="text-xs text-gray-400">{newBook.pdf_url ? 'تم اختيار ملف PDF' : 'رفع ملف PDF'}</p>
+                                            {newBook.pdf_url && <p className="text-[10px] text-green-400 mt-1">جاهز للرفع</p>}
                                         </div>
                                     </div>
                                 </div>
