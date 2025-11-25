@@ -58,8 +58,12 @@ const Profile = ({ user, token, onLogout }) => {
             });
             const data = await res.json();
             if (res.ok) {
+                // Update local storage
+                const currentUser = JSON.parse(localStorage.getItem('rawi_user') || '{}');
+                const updatedUser = { ...currentUser, ...profileData };
+                localStorage.setItem('rawi_user', JSON.stringify(updatedUser));
+
                 alert('تم تحديث الملف الشخصي بنجاح');
-                // You might want to update the global user state here if passed as a prop function
             } else {
                 alert(data.message || 'حدث خطأ');
             }
