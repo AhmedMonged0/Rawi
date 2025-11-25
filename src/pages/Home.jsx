@@ -394,39 +394,7 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, addToast }) => {
     );
 };
 
-// --- User Profile Component (NEW) ---
-const UserProfile = ({ isOpen, onClose, user }) => {
-    if (!isOpen || !user) return null;
 
-    return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[90] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-[#151515] w-full max-w-2xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
-                <div className="h-32 bg-gradient-to-r from-purple-600 to-blue-600 relative">
-                    <button onClick={onClose} className="absolute top-4 left-4 bg-black/20 hover:bg-black/40 text-white p-2 rounded-full backdrop-blur-sm transition-colors"><X size={20} /></button>
-                </div>
-                <div className="px-8 pb-8">
-                    <div className="relative -mt-12 mb-6 flex justify-between items-end">
-                        <div className="bg-[#151515] p-2 rounded-full"><div className="w-24 h-24 bg-gray-800 rounded-full flex items-center justify-center border-4 border-[#151515] text-4xl font-bold text-gray-400">{user.username.charAt(0).toUpperCase()}</div></div>
-                        <div className="mb-2"><span className="bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full text-xs font-bold border border-purple-500/30">{user.role === 'admin' ? 'مدير النظام' : 'قارئ مميز'}</span></div>
-                    </div>
-                    <h2 className="text-3xl font-bold text-white mb-1">{user.username}</h2>
-                    <p className="text-gray-400 mb-8">{user.email}</p>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="bg-white/5 rounded-xl p-5 border border-white/5">
-                            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><History size={18} className="text-purple-400" /> سجل الطلبات</h3>
-                            <div className="text-center py-8 text-gray-500 text-sm">لا توجد طلبات سابقة حتى الآن.<br />ابدأ رحلتك واقتنِ كتابك الأول!</div>
-                        </div>
-                        <div className="bg-white/5 rounded-xl p-5 border border-white/5">
-                            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><Heart size={18} className="text-red-400" /> الكتب المفضلة</h3>
-                            <div className="text-center py-8 text-gray-500 text-sm">قائمة أمنياتك فارغة حالياً.</div>
-                        </div>
-                    </div>
-                </div>
-            </motion.div>
-        </motion.div>
-    );
-};
 
 const ToastContainer = ({ toasts }) => (
     <div className="fixed top-24 left-6 z-[100] flex flex-col gap-2 pointer-events-none">
@@ -527,7 +495,7 @@ export default function Home() {
     const [wishlist, setWishlist] = useState([]);
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [isAuthOpen, setIsAuthOpen] = useState(false);
-    const [isProfileOpen, setIsProfileOpen] = useState(false);
+
     const [user, setUser] = useState(null);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -663,7 +631,6 @@ export default function Home() {
         localStorage.removeItem('rawi_user');
         localStorage.removeItem('rawi_token');
         setUser(null);
-        setIsProfileOpen(false);
         addToast("تم تسجيل الخروج بنجاح");
         window.location.href = "/";
     };
@@ -803,7 +770,7 @@ export default function Home() {
                     {selectedBook && <BookDetailsModal book={selectedBook} onClose={() => setSelectedBook(null)} onAddToCart={(b) => { addToCart(b); setSelectedBook(null); }} onAddWishlist={toggleWishlist} />}
                     {showCheckout && <CheckoutModal cart={cart} total={total} onClose={() => setShowCheckout(false)} onClearCart={() => setCart([])} />}
                     <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} onLoginSuccess={handleLoginSuccess} addToast={addToast} />
-                    <UserProfile isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} user={user} />
+
                 </AnimatePresence>
 
                 <AILibrarianWidget />

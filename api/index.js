@@ -338,20 +338,8 @@ app.delete('/api/admin/users/:id', async (req, res) => {
 
     const userIdToDelete = req.params.id;
 
-    // لا تسمح للأدمن بحذف نفسه
-    if (decoded.id == userIdToDelete) {
-      return res.status(403).json({ message: 'لا يمكنك حذف حسابك الخاص كأدمن' });
-    }
-
-    const { rowCount } = await db.query('DELETE FROM users WHERE id = $1', [userIdToDelete]);
-
-    if (rowCount === 0) {
-      return res.status(404).json({ message: 'المستخدم غير موجود' });
-    }
-
-    res.json({ message: 'تم حذف المستخدم بنجاح' });
   } catch (error) {
-    res.status(403).json({ message: 'توكن غير صالح أو خطأ في الخادم' });
+    res.status(500).send('Error initializing database: ' + error.message);
   }
 });
 
@@ -370,6 +358,7 @@ app.post('/api/favorites', async (req, res) => {
       'INSERT INTO favorites (user_id, book_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
       [decoded.id, bookId]
     );
+    console.log(`User ${decoded.id} added book ${bookId} to favorites.`);
 
     res.json({ message: 'تمت الإضافة للمفضلة' });
   } catch (error) {
