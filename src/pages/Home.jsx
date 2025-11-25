@@ -596,6 +596,10 @@ export default function Home() {
                 if (res.ok) {
                     setWishlist(wishlist.filter(i => i.id !== book.id));
                     addToast("تم الحذف من المفضلة");
+                } else {
+                    const data = await res.json();
+                    console.error("Delete favorite failed:", data);
+                    addToast(data.message || "فشل الحذف من المفضلة");
                 }
             } else {
                 const res = await fetch('/api/favorites', {
@@ -609,10 +613,15 @@ export default function Home() {
                 if (res.ok) {
                     setWishlist([...wishlist, book]);
                     addToast("تمت الإضافة للمفضلة");
+                } else {
+                    const data = await res.json();
+                    console.error("Add favorite failed:", data);
+                    addToast(data.message || "فشل الإضافة للمفضلة");
                 }
             }
         } catch (error) {
-            addToast("حدث خطأ");
+            console.error("Toggle wishlist error:", error);
+            addToast("حدث خطأ في الاتصال");
         }
     };
     const removeFromCart = (id) => setCart(cart.filter(i => i.id !== id));
