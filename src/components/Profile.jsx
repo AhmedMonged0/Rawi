@@ -143,11 +143,55 @@ const Profile = ({ user, token, onLogout }) => {
                                     <input type="text" value={profileData.username} onChange={e => setProfileData({ ...profileData, username: e.target.value })} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white focus:border-purple-500 outline-none transition-colors" />
                                 </div>
                                 <div>
-                                    <label className="block text-sm text-gray-400 mb-2">رابط الصورة الرمزية</label>
-                                    <div className="flex gap-3">
-                                        <input type="text" value={profileData.avatar_url} onChange={e => setProfileData({ ...profileData, avatar_url: e.target.value })} className="flex-1 bg-black/50 border border-white/10 rounded-xl p-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="https://..." />
-                                        <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
-                                            {profileData.avatar_url ? <img src={profileData.avatar_url} className="w-full h-full object-cover" /> : <Camera size={20} className="text-gray-600" />}
+                                    <label className="block text-sm text-gray-400 mb-2">الصورة الرمزية</label>
+                                    <div className="flex gap-4 items-start">
+                                        <div className="relative group w-24 h-24 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden cursor-pointer hover:border-purple-500 transition-colors">
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={(e) => {
+                                                    const file = e.target.files[0];
+                                                    if (file) {
+                                                        const reader = new FileReader();
+                                                        reader.onloadend = () => {
+                                                            setProfileData({ ...profileData, avatar_url: reader.result });
+                                                        };
+                                                        reader.readAsDataURL(file);
+                                                    }
+                                                }}
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                            />
+                                            {profileData.avatar_url ? (
+                                                <>
+                                                    <img src={profileData.avatar_url} className="w-full h-full object-cover" alt="Avatar Preview" />
+                                                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <Camera size={20} className="text-white" />
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <Camera size={24} className="text-gray-600 group-hover:text-purple-500 transition-colors" />
+                                            )}
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="border-2 border-dashed border-white/10 rounded-xl p-6 text-center hover:border-purple-500/50 transition-colors relative">
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={(e) => {
+                                                        const file = e.target.files[0];
+                                                        if (file) {
+                                                            const reader = new FileReader();
+                                                            reader.onloadend = () => {
+                                                                setProfileData({ ...profileData, avatar_url: reader.result });
+                                                            };
+                                                            reader.readAsDataURL(file);
+                                                        }
+                                                    }}
+                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                />
+                                                <p className="text-gray-400 text-sm mb-1">اضغط أو اسحب الصورة هنا</p>
+                                                <p className="text-gray-600 text-xs">يدعم JPG, PNG (الحد الأقصى 10MB)</p>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

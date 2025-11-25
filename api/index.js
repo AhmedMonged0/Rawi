@@ -14,7 +14,9 @@ app.use(cors({
   origin: '*', // يسمح للطلبات من أي مكان (جيد للتجربة)
   credentials: true
 }));
-app.use(express.json());
+
+// زيادة حجم الطلب المسموح به لرفع الصور
+app.use(express.json({ limit: '10mb' }));
 
 // --- الروابط (Endpoints) ---
 
@@ -45,7 +47,14 @@ app.get('/api/init-db', async (req, res) => {
     try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user'`); } catch (e) { schemaErrors.push('role: ' + e.message); }
     try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45)`); } catch (e) { schemaErrors.push('ip_address: ' + e.message); }
     try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS country VARCHAR(50)`); } catch (e) { schemaErrors.push('country: ' + e.message); }
-    try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500)`); } catch (e) { schemaErrors.push('avatar_url: ' + e.message); }
+
+    // تحديث عمود الصورة ليكون TEXT بدلاً من VARCHAR لدعم Base64
+    try {
+      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`);
+      await db.query(`ALTER TABLE users ALTER COLUMN avatar_url TYPE TEXT`);
+    } catch (e) {
+      schemaErrors.push('avatar_url: ' + e.message);
+    }
 
     // جدول الكتب
     await db.query(`
@@ -337,6 +346,7 @@ app.delete('/api/admin/users/:id', async (req, res) => {
     if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
 
     const userIdToDelete = req.params.id;
+    // TODO: Implement delete logic if needed
 
   } catch (error) {
     res.status(500).send('Error initializing database: ' + error.message);
@@ -393,7 +403,7 @@ app.get('/api/users/:id/favorites', async (req, res) => {
       SELECT b.* FROM books b
       JOIN favorites f ON b.id = f.book_id
       WHERE f.user_id = $1
-      `, [req.params.id]);
+  `, [req.params.id]);
 
     res.json(rows);
   } catch (error) {
