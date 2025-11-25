@@ -8,80 +8,32 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Helper: Gemini API ---
+// --- Helper: Gemini API ---
 const generateGeminiContent = async (prompt) => {
-    const apiKey = "AIzaSyDpYC5NeanWxbs2fUKA-oKkS_kfbMl5rBI";
+    try {
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ prompt })
+        });
 
-    // جرب الموديلات المتاحة بالترتيب
-    const models = [
-        'gemini-flash-latest',   // الموديل الأسرع والأحدث
-        'gemini-pro-latest',     // الموديل الأقوى
-    ];
+        const data = await response.json();
 
-    for (const model of models) {
-        try {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{ text: prompt }]
-                    }]
-                })
-            });
-
-            if (!response.ok) {
-                // إذا كان 404، جرب الموديل التالي
-                if (response.status === 404) {
-                    console.log(`Model ${model} not found, trying next...`);
-                    continue;
-                }
-
-                // معالجة أخطاء أخرى
-                if (response.status === 429) {
-                    return "تم تجاوز الحد المسموح من الطلبات. يرجى الانتظار قليلاً والمحاولة مرة أخرى.";
-                }
-
-                if (response.status === 403 || response.status === 401) {
-                    return "مشكلة في مفتاح API. يرجى التحقق من المفتاح في Google Cloud Console.";
-                }
-
-                const errorText = await response.text();
-                console.error(`API Error for ${model}:`, response.status, errorText);
-                continue;
+        if (!response.ok) {
+            if (response.status === 429) {
+                return "تم تجاوز الحد المسموح من الطلبات. يرجى الانتظار قليلاً والمحاولة مرة أخرى.";
             }
-
-            const data = await response.json();
-
-            // استخراج النص من الـ response
-            let text = null;
-            if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-                text = data.candidates[0].content.parts[0].text;
-            } else if (data.candidates?.[0]?.text) {
-                text = data.candidates[0].text;
-            } else if (data.text) {
-                text = data.text;
-            }
-
-            if (text) {
-                return text;
-            }
-
-        } catch (error) {
-            console.error(`Error with model ${model}:`, error);
-            // إذا كان خطأ شبكة، لا تجرب موديلات أخرى
-            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-                return "مشكلة في الاتصال بالإنترنت. يرجى التحقق من اتصالك.";
-            }
-            continue;
+            return "عذراً، حدث خطأ في الاتصال بالخادم.";
         }
-    }
 
-    // إذا فشلت كل المحاولات
-    return "عذراً، لا توجد موديلات متاحة حالياً. يرجى التحقق من مفتاح API أو المحاولة لاحقاً.";
+        return data.text || "عذراً، لم أتمكن من فهم طلبك.";
+
+    } catch (error) {
+        console.error('Error calling chat API:', error);
+        return "مشكلة في الاتصال بالإنترنت. يرجى التحقق من اتصالك.";
+    }
 };
 
 // --- Components ---

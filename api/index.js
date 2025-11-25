@@ -431,5 +431,70 @@ app.put('/api/users/profile', async (req, res) => {
   }
 });
 
+// 11. Gemini Chat Endpoint
+app.post('/api/chat', async (req, res) => {
+  const { prompt } = req.body;
+  const apiKey = process.env.GEMENI_API_KEY;
+
+  if (!apiKey) {
+    return res.status(500).json({ error: 'API key not configured' });
+  }
+
+  const models = [
+    'gemini-1.5-flash',
+    'gemini-pro',
+  ];
+
+  for (const model of models) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: prompt }]
+          }]
+        })
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.log(`Model ${model} not found, trying next...`);
+          continue;
+        }
+        if (response.status === 429) {
+          return res.status(429).json({ error: "تم تجاوز الحد المسموح من الطلبات. يرجى الانتظار قليلاً والمحاولة مرة أخرى." });
+        }
+        const errorText = await response.text();
+        console.error(`API Error for ${model}:`, response.status, errorText);
+        continue;
+      }
+
+      const data = await response.json();
+      let text = null;
+      if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+        text = data.candidates[0].content.parts[0].text;
+      } else if (data.candidates?.[0]?.text) {
+        text = data.candidates[0].text;
+      } else if (data.text) {
+        text = data.text;
+      }
+
+      if (text) {
+        return res.json({ text });
+      }
+
+    } catch (error) {
+      console.error(`Error with model ${model}:`, error);
+      continue;
+    }
+  }
+
+  res.status(500).json({ error: "عذراً، لا توجد موديلات متاحة حالياً. يرجى المحاولة لاحقاً." });
+});
+
 // هذا السطر هو سر عمل السيرفر على Vercel
 export default app;
