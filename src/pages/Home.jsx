@@ -129,30 +129,17 @@ const CodeMatrixBackground = () => {
             }
         };
 
-        const drawSymbol = (s, mouseX, mouseY) => {
+        const drawSymbol = (s) => {
             // 3D Perspective
             const scale = 800 / (800 + s.z);
             const x2d = (s.x - canvas.width / 2) * scale + canvas.width / 2;
             const y2d = (s.y - canvas.height / 2) * scale + canvas.height / 2;
 
-            // Mouse Interaction (Parallax & Repulsion)
-            let dx = 0, dy = 0;
-            if (mouseX) {
-                dx = (mouseX - canvas.width / 2) * 0.05 * scale;
-                dy = (mouseY - canvas.height / 2) * 0.05 * scale;
-            }
-
             ctx.font = `bold ${s.size * scale}px monospace`;
             ctx.fillStyle = s.color;
             ctx.globalAlpha = s.opacity * scale; // Fade out in distance
-            ctx.fillText(s.text, x2d - dx, y2d - dy);
+            ctx.fillText(s.text, x2d, y2d);
             ctx.globalAlpha = 1.0;
-        };
-
-        let mouseX = 0, mouseY = 0;
-        const handleMouseMove = (e) => {
-            mouseX = e.clientX;
-            mouseY = e.clientY;
         };
 
         const animate = () => {
@@ -173,7 +160,7 @@ const CodeMatrixBackground = () => {
                     s.x = Math.random() * canvas.width;
                     s.y = Math.random() * canvas.height;
                 }
-                drawSymbol(s, mouseX, mouseY);
+                drawSymbol(s);
             });
 
             animationFrameRef.current = requestAnimationFrame(animate);
@@ -183,11 +170,9 @@ const CodeMatrixBackground = () => {
         animate();
 
         window.addEventListener('resize', resizeCanvas);
-        window.addEventListener('mousemove', handleMouseMove);
 
         return () => {
             window.removeEventListener('resize', resizeCanvas);
-            window.removeEventListener('mousemove', handleMouseMove);
             if (animationFrameRef.current) {
                 cancelAnimationFrame(animationFrameRef.current);
             }
