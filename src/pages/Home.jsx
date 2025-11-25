@@ -815,9 +815,9 @@ export default function Home() {
                             <div className="mb-4"><RawiLogo /></div>
                             <p className="text-gray-500 max-w-xs mb-6">راوي.. حيث تلتقي الحكايات بالتكنولوجيا.</p>
                             <div className="flex gap-4">
-                                <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:text-white transition-all hover:scale-110 hover:bg-[#1877F2]"><SocialIcon type="facebook" /></a>
-                                <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:text-white transition-all hover:scale-110 hover:bg-gradient-to-tr hover:from-[#f09433] hover:via-[#dc2743] hover:to-[#bc1888]"><SocialIcon type="instagram" /></a>
-                                <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:text-white transition-all hover:scale-110 hover:bg-[#25D366]"><SocialIcon type="whatsapp" /></a>
+                                <a href="https://www.facebook.com/ahmed.monged.0" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:text-white transition-all hover:scale-110 hover:bg-[#1877F2]"><SocialIcon type="facebook" /></a>
+                                <a href="https://www.instagram.com/_eltagriby/" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:text-white transition-all hover:scale-110 hover:bg-gradient-to-tr hover:from-[#f09433] hover:via-[#dc2743] hover:to-[#bc1888]"><SocialIcon type="instagram" /></a>
+                                <a href="https://wa.me/201148220836" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:text-white transition-all hover:scale-110 hover:bg-[#25D366]"><SocialIcon type="whatsapp" /></a>
                             </div>
                         </div>
                         <div>
