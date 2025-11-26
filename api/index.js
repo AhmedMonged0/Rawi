@@ -563,6 +563,15 @@ app.post('/api/chat', async (req, res) => {
       continue;
     }
   }
+
+  if (lastError) {
+    return res.status(500).json({ error: lastError });
+  }
+});
+
+// إرسال طلب صداقة
+app.post('/api/connections/request', async (req, res) => {
+  const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
   if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
 
@@ -577,6 +586,22 @@ app.post('/api/chat', async (req, res) => {
       [decoded.id, receiverId]
     );
     res.json({ message: 'تم إرسال الطلب' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// البحث عن مستخدمين
+app.get('/api/users/search', async (req, res) => {
+  const { q } = req.query;
+  if (!q) return res.json([]);
+
+  try {
+    const { rows } = await db.query(
+      "SELECT id, username, avatar_url FROM users WHERE username ILIKE $1 LIMIT 20",
+      [`%${q}%`]
+    );
+    res.json(rows);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
