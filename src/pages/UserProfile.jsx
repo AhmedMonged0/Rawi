@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { User, Book, Calendar, Edit2, Check, X, MessageCircle, UserPlus, Clock, BookOpen, Heart, LogOut } from 'lucide-react';
+import { User, Book, Calendar, Edit2, Check, X, MessageCircle, UserPlus, Clock, BookOpen, Heart, LogOut, Users, UserMinus, Upload } from 'lucide-react';
 
 const UserProfile = () => {
     const { id } = useParams();
@@ -13,6 +13,13 @@ const UserProfile = () => {
     const [isCurrentUser, setIsCurrentUser] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // Social State
+    const [friendRequests, setFriendRequests] = useState([]);
+    const [followersCount, setFollowersCount] = useState(0);
+    const [followingCount, setFollowingCount] = useState(0);
+    const [isFollowing, setIsFollowing] = useState(false);
+
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -20,8 +27,15 @@ const UserProfile = () => {
             fetchUser();
             checkConnectionStatus();
             fetchUserBooks();
+            fetchFollowData();
         }
     }, [id]);
+
+    useEffect(() => {
+        if (isCurrentUser) {
+            fetchFriendRequests();
+        }
+    }, [isCurrentUser]);
 
     const fetchUser = async () => {
         setIsLoading(true);
@@ -57,23 +71,49 @@ const UserProfile = () => {
 
     const fetchUserBooks = async () => {
         try {
-            // Assuming we have an endpoint or can filter books by user
-            // For now, let's fetch all books and filter client-side or use a specific endpoint if available
-            // Ideally: GET /api/users/:id/books
             const res = await fetch(`/api/books`);
             if (res.ok) {
                 const allBooks = await res.json();
-                // Filter books where user_id matches (if backend returns user_id)
-                // Since the backend might not return user_id on the public feed, we might need a specific endpoint.
-                // But let's assume for now we can filter or the user has no books if we can't filter.
-                // Wait, the user specifically asked to "see the books he uploaded".
-                // I'll assume the book object has a user_id or author_id.
                 const myBooks = allBooks.filter(b => b.user_id == id);
                 setUserBooks(myBooks);
             }
         } catch (error) {
             console.error("Error fetching books", error);
         }
+    };
+
+    const fetchFollowData = async () => {
+        try {
+            const followersRes = await fetch(`/api/users/${id}/followers`);
+            const followingRes = await fetch(`/api/users/${id}/following`);
+            if (followersRes.ok) setFollowersCount((await followersRes.json()).length);
+            if (followingRes.ok) setFollowingCount((await followingRes.json()).length);
+
+            const token = localStorage.getItem('rawi_token');
+            if (token) {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                const myId = payload.id;
+                // Check if I am following this user
+                if (myId != id) {
+                    const isFollowingRes = await fetch(`/api/users/${myId}/is-following/${id}`);
+                    if (isFollowingRes.ok) {
+                        const data = await isFollowingRes.json();
+                        setIsFollowing(data.isFollowing);
+                    }
+                }
+            }
+        } catch (e) { console.error(e); }
+    };
+
+    const fetchFriendRequests = async () => {
+        const token = localStorage.getItem('rawi_token');
+        if (!token) return;
+        try {
+            const res = await fetch('/api/connections/requests', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.ok) setFriendRequests(await res.json());
+        } catch (e) { console.error(e); }
     };
 
     const checkConnectionStatus = async () => {
@@ -123,6 +163,30 @@ const UserProfile = () => {
         }
     };
 
+    const handleAvatarUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            const base64 = reader.result;
+            // Optimistic update
+            setUser(prev => ({ ...prev, avatar_url: base64 }));
+
+            const token = localStorage.getItem('rawi_token');
+            if (!token) return;
+
+            try {
+                await fetch('/api/users/profile', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ username: user.username, avatar_url: base64 })
+                });
+            } catch (err) { console.error(err); }
+        };
+        reader.readAsDataURL(file);
+    };
+
     const sendRequest = async () => {
         const token = localStorage.getItem('rawi_token');
         if (!token) return alert('يجب تسجيل الدخول أولاً');
@@ -146,6 +210,51 @@ const UserProfile = () => {
         } catch (error) {
             console.error('Error sending request:', error);
         }
+    };
+
+    const handleFollowToggle = async () => {
+        const token = localStorage.getItem('rawi_token');
+        if (!token) return alert('يجب تسجيل الدخول');
+
+        const url = isFollowing ? `/api/follow/${id}` : '/api/follow';
+        const method = isFollowing ? 'DELETE' : 'POST';
+        const body = isFollowing ? null : JSON.stringify({ followedId: id });
+
+        try {
+            const res = await fetch(url, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body
+            });
+            if (res.ok) {
+                setIsFollowing(!isFollowing);
+                setFollowersCount(prev => isFollowing ? prev - 1 : prev + 1);
+            }
+        } catch (e) { console.error(e); }
+    };
+
+    const handleRespondRequest = async (requestId, status) => {
+        const token = localStorage.getItem('rawi_token');
+        try {
+            const res = await fetch(`/api/connections/${requestId}/respond`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ status })
+            });
+            if (res.ok) {
+                setFriendRequests(prev => prev.filter(r => r.id !== requestId));
+                // If accepted, we might want to refresh connection status if it was from this user
+                // But this list is "Requests Received", so if I accept, we become friends.
+                // If the current profile page IS the sender, we should update status.
+                // But usually requests list is shown on MY profile.
+                // If I am viewing MY profile, and I accept a request from User X.
+                // My connection status with User X changes.
+                // But I am viewing ME.
+            }
+        } catch (e) { console.error(e); }
     };
 
     if (isLoading) return (
@@ -203,9 +312,18 @@ const UserProfile = () => {
                                 />
                             </div>
                             {isCurrentUser && (
-                                <button className="absolute bottom-2 right-2 bg-gray-800 p-2 rounded-full border border-white/10 hover:bg-gray-700 transition-colors">
-                                    <Edit2 size={16} className="text-gray-300" />
-                                </button>
+                                <>
+                                    <label htmlFor="avatar-upload" className="absolute bottom-2 right-2 bg-gray-800 p-2 rounded-full border border-white/10 hover:bg-gray-700 transition-colors cursor-pointer">
+                                        <Edit2 size={16} className="text-gray-300" />
+                                    </label>
+                                    <input
+                                        id="avatar-upload"
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={handleAvatarUpload}
+                                    />
+                                </>
                             )}
                         </div>
 
@@ -257,11 +375,11 @@ const UserProfile = () => {
                                     <span className="text-sm text-gray-500">كتب منشورة</span>
                                 </div>
                                 <div className="text-center">
-                                    <span className="block text-2xl font-bold text-white">0</span>
+                                    <span className="block text-2xl font-bold text-white">{followersCount}</span>
                                     <span className="text-sm text-gray-500">متابعين</span>
                                 </div>
                                 <div className="text-center">
-                                    <span className="block text-2xl font-bold text-white">0</span>
+                                    <span className="block text-2xl font-bold text-white">{followingCount}</span>
                                     <span className="text-sm text-gray-500">متابعة</span>
                                 </div>
                             </div>
@@ -270,6 +388,19 @@ const UserProfile = () => {
                         {/* Actions */}
                         {!isCurrentUser && (
                             <div className="flex flex-col gap-3 min-w-[150px]">
+                                {/* Follow Button */}
+                                <button
+                                    onClick={handleFollowToggle}
+                                    className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl transition-all font-bold shadow-lg ${isFollowing
+                                            ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                                            : 'bg-white text-black hover:bg-gray-200'
+                                        }`}
+                                >
+                                    {isFollowing ? <UserMinus size={20} /> : <UserPlus size={20} />}
+                                    <span>{isFollowing ? 'إلغاء المتابعة' : 'متابعة'}</span>
+                                </button>
+
+                                {/* Friend Request Button */}
                                 {connectionStatus === 'none' && (
                                     <button onClick={sendRequest} className="flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl transition-all font-bold shadow-lg shadow-purple-900/20">
                                         <UserPlus size={20} />
@@ -292,6 +423,37 @@ const UserProfile = () => {
                         )}
                     </div>
                 </div>
+
+                {/* Friend Requests Section (Only for Current User) */}
+                {isCurrentUser && friendRequests.length > 0 && (
+                    <div className="mb-8">
+                        <h2 className="text-2xl font-bold flex items-center gap-2 mb-4">
+                            <Users className="text-purple-500" />
+                            <span>طلبات الصداقة ({friendRequests.length})</span>
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {friendRequests.map(req => (
+                                <div key={req.id} className="bg-[#151515] p-4 rounded-xl border border-white/10 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <img src={req.avatar_url || 'https://via.placeholder.com/40'} alt={req.username} className="w-10 h-10 rounded-full object-cover" />
+                                        <div>
+                                            <h4 className="font-bold">{req.username}</h4>
+                                            <span className="text-xs text-gray-500">{new Date(req.created_at).toLocaleDateString('ar-EG')}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => handleRespondRequest(req.id, 'accepted')} className="p-2 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30">
+                                            <Check size={18} />
+                                        </button>
+                                        <button onClick={() => handleRespondRequest(req.id, 'rejected')} className="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30">
+                                            <X size={18} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Books Grid */}
                 <div className="space-y-6">

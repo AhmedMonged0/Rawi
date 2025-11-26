@@ -111,6 +111,17 @@ app.get('/api/init-db', async (req, res) => {
       );
     `);
 
+    // جدول المتابعة
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS follows (
+        id SERIAL PRIMARY KEY,
+        follower_id INTEGER REFERENCES users(id),
+        followed_id INTEGER REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(follower_id, followed_id)
+      );
+    `);
+
     // إنشاء مستخدم أدمن افتراضي
     const hashedPassword = await bcrypt.hash('admin123', 10);
     await db.query(`
@@ -772,6 +783,115 @@ app.put('/api/admin/books/:id/status', async (req, res) => {
       [status, feedback, req.params.id]
     );
     res.json({ message: 'تم تحديث حالة الكتاب' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// 18. Follow System
+// Follow User
+app.post('/api/follow', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const { followedId } = req.body;
+
+    if (decoded.id == followedId) return res.status(400).json({ message: 'لا يمكنك متابعة نفسك' });
+
+    await db.query(
+      "INSERT INTO follows (follower_id, followed_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      [decoded.id, followedId]
+    );
+    res.json({ message: 'تمت المتابعة' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Unfollow User
+app.delete('/api/follow/:id', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const followedId = req.params.id;
+
+    await db.query(
+      "DELETE FROM follows WHERE follower_id = $1 AND followed_id = $2",
+      [decoded.id, followedId]
+    );
+    res.json({ message: 'تم إلغاء المتابعة' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get Followers
+app.get('/api/users/:id/followers', async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT u.id, u.username, u.avatar_url 
+      FROM users u
+      JOIN follows f ON u.id = f.follower_id
+      WHERE f.followed_id = $1
+    `, [req.params.id]);
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get Following
+app.get('/api/users/:id/following', async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT u.id, u.username, u.avatar_url 
+      FROM users u
+      JOIN follows f ON u.id = f.followed_id
+      WHERE f.follower_id = $1
+    `, [req.params.id]);
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Check Follow Status
+app.get('/api/users/:id/is-following/:targetId', async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      "SELECT * FROM follows WHERE follower_id = $1 AND followed_id = $2",
+      [req.params.id, req.params.targetId]
+    );
+    res.json({ isFollowing: rows.length > 0 });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// 19. Friend Requests List
+app.get('/api/connections/requests', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    const { rows } = await db.query(`
+      SELECT c.id, u.id as user_id, u.username, u.avatar_url, c.created_at
+      FROM connections c
+      JOIN users u ON c.sender_id = u.id
+      WHERE c.receiver_id = $1 AND c.status = 'pending'
+      ORDER BY c.created_at DESC
+    `, [decoded.id]);
+
+    res.json(rows);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
