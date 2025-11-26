@@ -97,7 +97,7 @@ const AdminDashboard = () => {
             {/* Details Modal */}
             {selectedBook && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-                    <div className="bg-[#151515] rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-white/10">
+                    <div className="bg-[#151515] rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-white/10">
                         <div className="p-6">
                             <div className="flex justify-between items-start mb-6">
                                 <h2 className="text-2xl font-bold text-white">{selectedBook.title}</h2>
@@ -106,45 +106,61 @@ const AdminDashboard = () => {
                                 </button>
                             </div>
 
-                            <div className="flex flex-col md:flex-row gap-6">
-                                <img src={selectedBook.image_url} alt={selectedBook.title} className="w-48 h-72 object-cover rounded-lg mx-auto md:mx-0" />
-                                <div className="space-y-4 flex-1">
-                                    <div className="grid grid-cols-2 gap-4 text-sm">
-                                        <div>
-                                            <span className="text-gray-500 block">المؤلف</span>
+                            <div className="flex flex-col lg:flex-row gap-6">
+                                <div className="lg:w-1/3 space-y-4">
+                                    <img src={selectedBook.image_url} alt={selectedBook.title} className="w-full rounded-lg shadow-lg" />
+
+                                    <div className="space-y-2 text-sm">
+                                        <div className="flex justify-between border-b border-white/10 pb-2">
+                                            <span className="text-gray-500">المؤلف</span>
                                             <span className="text-white">{selectedBook.author}</span>
                                         </div>
-                                        <div>
-                                            <span className="text-gray-500 block">التصنيف</span>
+                                        <div className="flex justify-between border-b border-white/10 pb-2">
+                                            <span className="text-gray-500">التصنيف</span>
                                             <span className="text-white">{selectedBook.category}</span>
                                         </div>
-                                        <div>
-                                            <span className="text-gray-500 block">اللغة</span>
+                                        <div className="flex justify-between border-b border-white/10 pb-2">
+                                            <span className="text-gray-500">اللغة</span>
                                             <span className="text-white">{selectedBook.language}</span>
                                         </div>
-                                        <div>
-                                            <span className="text-gray-500 block">عدد الصفحات</span>
+                                        <div className="flex justify-between border-b border-white/10 pb-2">
+                                            <span className="text-gray-500">عدد الصفحات</span>
                                             <span className="text-white">{selectedBook.pages}</span>
                                         </div>
                                     </div>
 
                                     <div>
                                         <span className="text-gray-500 block mb-1">الوصف</span>
-                                        <p className="text-gray-300 text-sm leading-relaxed bg-white/5 p-3 rounded-lg">
+                                        <p className="text-gray-300 text-sm leading-relaxed bg-white/5 p-3 rounded-lg max-h-40 overflow-y-auto">
                                             {selectedBook.description}
                                         </p>
                                     </div>
+                                </div>
 
-                                    {selectedBook.pdf_url && (
-                                        <a
-                                            href={selectedBook.pdf_url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center justify-center gap-2 w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-xl transition-colors font-bold mt-4"
-                                        >
-                                            <FileText size={20} />
-                                            عرض ملف الكتاب (PDF)
-                                        </a>
+                                <div className="lg:w-2/3 flex flex-col">
+                                    {selectedBook.pdf_url ? (
+                                        <div className="flex-1 flex flex-col gap-4">
+                                            <span className="text-gray-500 block">معاينة الملف</span>
+                                            <div className="flex-1 bg-white rounded-xl overflow-hidden border border-white/10 min-h-[500px]">
+                                                <iframe
+                                                    src={selectedBook.pdf_url}
+                                                    className="w-full h-full"
+                                                    title="PDF Preview"
+                                                />
+                                            </div>
+                                            <a
+                                                href={selectedBook.pdf_url}
+                                                download={`${selectedBook.title}.pdf`}
+                                                className="flex items-center justify-center gap-2 w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-xl transition-colors font-bold"
+                                            >
+                                                <FileText size={20} />
+                                                تحميل ملف الكتاب (PDF)
+                                            </a>
+                                        </div>
+                                    ) : (
+                                        <div className="flex-1 flex items-center justify-center bg-white/5 rounded-xl border border-white/10">
+                                            <p className="text-gray-500">لا يوجد ملف PDF مرفق</p>
+                                        </div>
                                     )}
                                 </div>
                             </div>
