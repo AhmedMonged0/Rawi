@@ -136,7 +136,7 @@ const UserProfile = () => {
                             <div className="flex flex-wrap justify-center md:justify-start gap-4 text-gray-400 text-sm">
                                 <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full">
                                     <Calendar size={14} />
-                                    <span>انضم في {new Date(user.created_at).toLocaleDateString('ar-EG')}</span>
+                                    <span>انضم في {user.created_at ? new Date(user.created_at).toLocaleDateString('ar-EG') : 'غير معروف'}</span>
                                 </div>
                                 <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full">
                                     <User size={14} />
