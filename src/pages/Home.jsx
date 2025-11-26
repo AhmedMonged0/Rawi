@@ -506,8 +506,10 @@ export default function Home() {
         addToast("تم حذف الكتاب من السلة");
     };
 
-    const handleLoginSuccess = (userData) => {
+    const handleLoginSuccess = (userData, token) => {
         setUser(userData);
+        localStorage.setItem('rawi_user', JSON.stringify(userData));
+        localStorage.setItem('rawi_token', token);
         setIsAuthOpen(false);
         addToast("تم تسجيل الدخول بنجاح!");
     };

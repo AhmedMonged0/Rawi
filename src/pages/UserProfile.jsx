@@ -11,12 +11,19 @@ const UserProfile = () => {
     const [newUsername, setNewUsername] = useState('');
     const [isCurrentUser, setIsCurrentUser] = useState(false);
 
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+
     useEffect(() => {
-        fetchUser();
-        checkConnectionStatus();
+        if (id) {
+            fetchUser();
+            checkConnectionStatus();
+        }
     }, [id]);
 
     const fetchUser = async () => {
+        setIsLoading(true);
+        setError(null);
         try {
             const res = await fetch(`/api/users/${id}`);
             if (res.ok) {
@@ -27,12 +34,21 @@ const UserProfile = () => {
                 // Check if this is the current user
                 const token = localStorage.getItem('rawi_token');
                 if (token) {
-                    const payload = JSON.parse(atob(token.split('.')[1]));
-                    setIsCurrentUser(payload.id == id);
+                    try {
+                        const payload = JSON.parse(atob(token.split('.')[1]));
+                        setIsCurrentUser(payload.id == id);
+                    } catch (e) {
+                        console.error("Token parse error", e);
+                    }
                 }
+            } else {
+                setError("المستخدم غير موجود");
             }
         } catch (error) {
             console.error('Error fetching user:', error);
+            setError("حدث خطأ في الاتصال");
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -109,9 +125,15 @@ const UserProfile = () => {
         }
     };
 
-    if (!user) return (
+    if (isLoading) return (
         <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-            <div className="animate-pulse text-purple-500">جاري التحميل...</div>
+            <div className="animate-pulse text-purple-500 text-xl">جاري التحميل...</div>
+        </div>
+    );
+
+    if (error || !user) return (
+        <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+            <div className="text-red-500 text-xl">{error || "المستخدم غير موجود"}</div>
         </div>
     );
 
