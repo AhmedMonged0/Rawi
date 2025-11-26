@@ -8,11 +8,9 @@ const UserProfile = () => {
     const [connectionStatus, setConnectionStatus] = useState('none'); // none, pending, friends
     const [isSender, setIsSender] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
-    const [newUsername, setNewUsername] = useState('');
-    const [isCurrentUser, setIsCurrentUser] = useState(false);
-
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    const navigate = useNavigate();
 
     useEffect(() => {
         if (id) {
@@ -36,92 +34,30 @@ const UserProfile = () => {
                 if (token) {
                     try {
                         const payload = JSON.parse(atob(token.split('.')[1]));
-                        setIsCurrentUser(payload.id == id);
+                        const isCurrent = payload.id == id;
+                        setIsCurrentUser(isCurrent);
                     } catch (e) {
                         console.error("Token parse error", e);
                     }
                 }
             } else {
                 setError("المستخدم غير موجود");
+                // If the user we are looking for is the one logged in (based on local storage), logout
+                const storedUser = localStorage.getItem('rawi_user');
+                if (storedUser) {
+                    const currentUser = JSON.parse(storedUser);
+                    if (currentUser.id == id) {
+                        localStorage.removeItem('rawi_token');
+                        localStorage.removeItem('rawi_user');
+                        setTimeout(() => navigate('/'), 2000); // Redirect after showing error
+                    }
+                }
             }
         } catch (error) {
             console.error('Error fetching user:', error);
             setError("حدث خطأ في الاتصال");
         } finally {
             setIsLoading(false);
-        }
-    };
-
-    const checkConnectionStatus = async () => {
-        const token = localStorage.getItem('rawi_token');
-        if (!token) return;
-
-        try {
-            const res = await fetch(`/api/connections/status/${id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setConnectionStatus(data.status);
-                setIsSender(data.isSender);
-            }
-        } catch (error) {
-            console.error('Error checking status:', error);
-        }
-    };
-
-    const handleUpdateProfile = async () => {
-        const token = localStorage.getItem('rawi_token');
-        if (!token) return;
-
-        try {
-            const res = await fetch('/api/users/profile', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    username: newUsername,
-                    avatar_url: user.avatar_url // Keep existing avatar for now
-                })
-            });
-
-            if (res.ok) {
-                const updatedUser = await res.json();
-                setUser(prev => ({ ...prev, username: updatedUser.username }));
-                setIsEditing(false);
-                // Update local storage user info if needed
-            } else {
-                alert('فشل تحديث الملف الشخصي');
-            }
-        } catch (error) {
-            console.error('Error updating profile:', error);
-        }
-    };
-
-    const sendRequest = async () => {
-        const token = localStorage.getItem('rawi_token');
-        if (!token) return alert('يجب تسجيل الدخول أولاً');
-
-        try {
-            const res = await fetch('/api/connections/request', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({ receiverId: id })
-            });
-            if (res.ok) {
-                setConnectionStatus('pending');
-                setIsSender(true);
-            } else {
-                const data = await res.json();
-                alert(data.message);
-            }
-        } catch (error) {
-            console.error('Error sending request:', error);
         }
     };
 
@@ -132,13 +68,19 @@ const UserProfile = () => {
     );
 
     if (error || !user) return (
-        <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center flex-col gap-4">
             <div className="text-red-500 text-xl">{error || "المستخدم غير موجود"}</div>
+            <button onClick={() => navigate('/')} className="bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-full transition-colors">
+                العودة للرئيسية
+            </button>
         </div>
     );
 
     return (
         <div className="min-h-screen bg-[#0a0a0a] text-white p-6 pt-24 font-['Tajawal']" dir="rtl">
+            <button onClick={() => navigate('/')} className="absolute top-6 right-6 bg-white/10 hover:bg-white/20 p-2 rounded-full transition-colors z-50">
+                <X size={24} />
+            </button>
             <div className="max-w-4xl mx-auto">
                 {/* Profile Header Card */}
                 <div className="bg-[#151515] rounded-3xl p-8 border border-white/10 shadow-2xl relative overflow-hidden">
