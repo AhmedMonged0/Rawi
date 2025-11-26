@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Users, Loader2, X, LogOut, Trash2, MapPin, Globe, BookOpen, Plus, DollarSign, FileText, Image as ImageIcon } from 'lucide-react';
+import { ShieldCheck, Users, Loader2, X, LogOut, Trash2, MapPin, Globe, BookOpen, Plus, DollarSign, FileText, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const AdminDashboard = ({ token, onLogout }) => {
@@ -12,6 +12,7 @@ const AdminDashboard = ({ token, onLogout }) => {
         title: '', author: '', category: '', description: '',
         image_url: '', pdf_url: '', pages: '', language: 'العربية', is_new: false
     });
+    const [deleteModal, setDeleteModal] = useState({ show: false, type: null, id: null, title: '' });
 
     // Fetch Data
     useEffect(() => {
@@ -39,7 +40,6 @@ const AdminDashboard = ({ token, onLogout }) => {
 
     // --- User Actions ---
     const handleDeleteUser = async (userId) => {
-        if (!window.confirm('هل أنت متأكد من حذف هذا المستخدم؟')) return;
         try {
             const res = await fetch(`/api/admin/users/${userId}`, {
                 method: 'DELETE',
@@ -47,7 +47,7 @@ const AdminDashboard = ({ token, onLogout }) => {
             });
             if (res.ok) {
                 setUsers(users.filter(u => u.id !== userId));
-                alert('تم الحذف بنجاح');
+                // alert('تم الحذف بنجاح'); // Optional: Remove alert if modal is enough feedback
             } else {
                 alert('فشل الحذف');
             }
@@ -82,7 +82,6 @@ const AdminDashboard = ({ token, onLogout }) => {
                     alert('تم إضافة الكتاب بنجاح');
                 }
                 setShowAddBook(false);
-                setShowAddBook(false);
                 setNewBook({ title: '', author: '', category: '', description: '', image_url: '', pdf_url: '', pages: '', language: 'العربية', is_new: false });
             } else {
                 alert(data.message || 'حدث خطأ');
@@ -93,7 +92,6 @@ const AdminDashboard = ({ token, onLogout }) => {
     };
 
     const handleDeleteBook = async (bookId) => {
-        if (!window.confirm('هل أنت متأكد من حذف هذا الكتاب؟')) return;
         try {
             const res = await fetch(`/api/books/${bookId}`, {
                 method: 'DELETE',
@@ -101,13 +99,26 @@ const AdminDashboard = ({ token, onLogout }) => {
             });
             if (res.ok) {
                 setBooks(books.filter(b => b.id !== bookId));
-                alert('تم حذف الكتاب');
+                // alert('تم حذف الكتاب');
             } else {
                 alert('فشل الحذف');
             }
         } catch (error) {
             console.error(error);
         }
+    };
+
+    const confirmDelete = (type, id, title) => {
+        setDeleteModal({ show: true, type, id, title });
+    };
+
+    const executeDelete = async () => {
+        if (deleteModal.type === 'user') {
+            await handleDeleteUser(deleteModal.id);
+        } else if (deleteModal.type === 'book') {
+            await handleDeleteBook(deleteModal.id);
+        }
+        setDeleteModal({ show: false, type: null, id: null, title: '' });
     };
 
     const openEditModal = (book) => {
@@ -166,7 +177,7 @@ const AdminDashboard = ({ token, onLogout }) => {
                                                 <td className="p-4 text-xs text-gray-400"><div className="flex items-center gap-1"><Globe size={12} /> {u.country || 'غير معروف'}</div></td>
                                                 <td className="p-4"><span className={`px-2 py-1 rounded text-xs ${u.role === 'admin' ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'}`}>{u.role || 'user'}</span></td>
                                                 <td className="p-4">{new Date(u.created_at).toLocaleDateString('ar-EG')}</td>
-                                                <td className="p-4">{u.role !== 'admin' && <button onClick={() => handleDeleteUser(u.id)} className="text-red-400 hover:bg-red-500/10 p-2 rounded-lg"><Trash2 size={18} /></button>}</td>
+                                                <td className="p-4">{u.role !== 'admin' && <button onClick={() => confirmDelete('user', u.id, 'هل أنت متأكد من حذف هذا المستخدم؟')} className="text-red-400 hover:bg-red-500/10 p-2 rounded-lg"><Trash2 size={18} /></button>}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -197,7 +208,7 @@ const AdminDashboard = ({ token, onLogout }) => {
                                                 <td className="p-4 text-xs truncate max-w-[150px]" title={b.pdf_url}>{b.pdf_url}</td>
                                                 <td className="p-4 flex gap-2">
                                                     <button onClick={() => openEditModal(b)} className="text-blue-400 hover:bg-blue-500/10 p-2 rounded-lg"><FileText size={18} /></button>
-                                                    <button onClick={() => handleDeleteBook(b.id)} className="text-red-400 hover:bg-red-500/10 p-2 rounded-lg"><Trash2 size={18} /></button>
+                                                    <button onClick={() => confirmDelete('book', b.id, 'هل أنت متأكد من حذف هذا الكتاب؟')} className="text-red-400 hover:bg-red-500/10 p-2 rounded-lg"><Trash2 size={18} /></button>
                                                 </td>
                                             </tr>
                                         ))}
@@ -299,6 +310,29 @@ const AdminDashboard = ({ token, onLogout }) => {
 
                                 <button type="submit" className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-xl font-bold hover:opacity-90 transition-all mt-4">{newBook.id ? 'حفظ التعديلات' : 'حفظ الكتاب'}</button>
                             </form>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Delete Confirmation Modal */}
+            <AnimatePresence>
+                {deleteModal.show && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-[#151515] w-full max-w-md rounded-2xl border border-white/10 shadow-2xl overflow-hidden p-6 text-center">
+                            <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <AlertTriangle size={32} className="text-red-500" />
+                            </div>
+                            <h3 className="text-xl font-bold text-white mb-2">تأكيد الحذف</h3>
+                            <p className="text-gray-400 mb-6">{deleteModal.title}</p>
+                            <div className="flex gap-3">
+                                <button onClick={executeDelete} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-bold transition-colors">
+                                    نعم، احذف
+                                </button>
+                                <button onClick={() => setDeleteModal({ show: false, type: null, id: null, title: '' })} className="flex-1 bg-gray-800 hover:bg-gray-700 text-white py-3 rounded-xl font-bold transition-colors">
+                                    إلغاء
+                                </button>
+                            </div>
                         </motion.div>
                     </motion.div>
                 )}
