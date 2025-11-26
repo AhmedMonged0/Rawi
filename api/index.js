@@ -49,8 +49,124 @@ app.get('/api/init-db', async (req, res) => {
     try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS country VARCHAR(50)`); } catch (e) { schemaErrors.push('country: ' + e.message); }
 
     // تحديث عمود الصورة ليكون TEXT بدلاً من VARCHAR لدعم Base64
-    try {
-    });
+    try { await db.query(`ALTER TABLE books ALTER COLUMN image_url TYPE TEXT`); } catch (e) { schemaErrors.push('image_url type: ' + e.message); }
+
+    // جدول الكتب
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS books (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        author VARCHAR(255) NOT NULL,
+        category VARCHAR(100),
+        description TEXT,
+        image_url TEXT,
+        pdf_url TEXT,
+        pages INTEGER,
+        language VARCHAR(50) DEFAULT 'العربية',
+        rating DECIMAL(2,1) DEFAULT 5.0,
+        is_new BOOLEAN DEFAULT FALSE,
+        user_id INTEGER REFERENCES users(id),
+        status VARCHAR(20) DEFAULT 'approved',
+        admin_feedback TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // جدول الصداقات
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS connections (
+        id SERIAL PRIMARY KEY,
+        sender_id INTEGER REFERENCES users(id),
+        receiver_id INTEGER REFERENCES users(id),
+        status VARCHAR(20) DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // جدول الرسائل
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id SERIAL PRIMARY KEY,
+        sender_id INTEGER REFERENCES users(id),
+        receiver_id INTEGER REFERENCES users(id),
+        content TEXT NOT NULL,
+        is_read BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // جدول المفضلة
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS favorites (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        book_id INTEGER REFERENCES books(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, book_id)
+      );
+    `);
+
+    // إنشاء مستخدم أدمن افتراضي
+    const hashedPassword = await bcrypt.hash('admin123', 10);
+    await db.query(`
+      INSERT INTO users (username, email, password_hash, role)
+      VALUES ($1, $2, $3, 'admin')
+      ON CONFLICT (email) DO NOTHING;
+    `, ['admin', 'admin@rawi.com', hashedPassword]);
+
+    // إضافة كتب افتراضية إذا كان الجدول فارغاً
+    const { rows: bookCount } = await db.query('SELECT COUNT(*) FROM books');
+    if (parseInt(bookCount[0].count) === 0) {
+      const initialBooks = [
+        {
+          title: "خوارزميات المستقبل",
+          author: "د. أحمد الرفاعي",
+          category: "تكنولوجيا",
+          description: "رحلة ممتعة في عالم الخوارزميات وكيف تشكل حياتنا اليومية ومستقبلنا.",
+          image_url: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
+          pdf_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+          pages: 250,
+          rating: 4.8,
+          is_new: true
+        },
+        {
+          title: "رحلة إلى المريخ",
+          author: "سارة العلي",
+          category: "خيال علمي",
+          description: "رواية مشوقة تحكي قصة أول مستعمرة بشرية على سطح الكوكب الأحمر.",
+          image_url: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80",
+          pdf_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+          pages: 320,
+          rating: 4.5,
+          is_new: false
+        },
+        {
+          title: "أساسيات الذكاء الاصطناعي",
+          author: "م. خالد عمر",
+          category: "ذكاء اصطناعي",
+          description: "دليل شامل للمبتدئين لفهم مبادئ الذكاء الاصطناعي وتطبيقاته.",
+          image_url: "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=800&q=80",
+          pdf_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+          pages: 180,
+          rating: 4.9,
+          is_new: true
+        }
+      ];
+
+      for (const book of initialBooks) {
+        await db.query(`
+          INSERT INTO books (title, author, category, description, image_url, pdf_url, pages, rating, is_new, status)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'approved')
+        `, [book.title, book.author, book.category, book.description, book.image_url, book.pdf_url, book.pages, book.rating, book.is_new]);
+      }
+    }
+
+    res.json({ message: 'Database initialized successfully', schemaErrors });
+  } catch (error) {
+    console.error('Init DB Error:', error);
+    res.status(500).json({ message: 'Database initialization failed', error: error.message });
+  }
+});
 
 // 3. جلب جميع الكتب
 app.get('/api/books', async (req, res) => {
