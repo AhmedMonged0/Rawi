@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { User, Book, Calendar, Edit2, Check, X, MessageCircle, UserPlus, Clock, BookOpen, Heart } from 'lucide-react';
+import { User, Book, Calendar, Edit2, Check, X, MessageCircle, UserPlus, Clock, BookOpen, Heart, LogOut } from 'lucide-react';
 
 const UserProfile = () => {
     const { id } = useParams();
@@ -155,11 +155,30 @@ const UserProfile = () => {
     );
 
     if (error || !user) return (
-        <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center flex-col gap-4">
-            <div className="text-red-500 text-xl">{error || "المستخدم غير موجود"}</div>
-            <button onClick={() => navigate('/')} className="bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-full transition-colors">
-                العودة للرئيسية
-            </button>
+        <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center flex-col gap-6 p-4 text-center">
+            <div className="bg-red-500/10 p-6 rounded-2xl border border-red-500/20 max-w-md">
+                <h2 className="text-2xl font-bold text-red-500 mb-2">المستخدم غير موجود</h2>
+                <p className="text-gray-400 mb-6">
+                    عذراً، لم نتمكن من العثور على هذا المستخدم (ID: {id}).
+                    <br />
+                    قد يكون الحساب قد حذف أو أن الرابط غير صحيح.
+                </p>
+                <div className="flex flex-col gap-3">
+                    <button onClick={() => navigate('/')} className="w-full bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-xl transition-colors font-bold">
+                        العودة للرئيسية
+                    </button>
+                    <button
+                        onClick={() => {
+                            localStorage.removeItem('rawi_token');
+                            localStorage.removeItem('rawi_user');
+                            window.location.href = '/';
+                        }}
+                        className="w-full bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl transition-colors flex items-center justify-center gap-2 font-bold"
+                    >
+                        <LogOut size={20} /> تسجيل خروج (لإصلاح المشكلة)
+                    </button>
+                </div>
+            </div>
         </div>
     );
 
