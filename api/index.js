@@ -685,6 +685,7 @@ app.get('/api/connections', async (req, res) => {
       FROM connections c
       JOIN users u ON c.sender_id = u.id
       WHERE c.receiver_id = $1 AND c.status = 'pending'
+      ORDER BY c.created_at DESC
     `, [decoded.id]);
 
     res.json({ friends, pending });
@@ -767,6 +768,71 @@ app.get('/api/messages/:userId', async (req, res) => {
     `, [decoded.id, otherUserId]);
 
     res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Delete Conversation
+app.delete('/api/messages/conversation/:friendId', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const friendId = req.params.friendId;
+
+    await db.query(
+      "DELETE FROM messages WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)",
+      [decoded.id, friendId]
+    );
+    res.json({ message: 'تم حذف المحادثة' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Delete Message
+app.delete('/api/messages/:id', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const messageId = req.params.id;
+
+    const { rowCount } = await db.query(
+      "DELETE FROM messages WHERE id = $1 AND sender_id = $2",
+      [messageId, decoded.id]
+    );
+
+    if (rowCount === 0) return res.status(403).json({ message: 'غير مسموح بحذف هذه الرسالة' });
+    res.json({ message: 'تم حذف الرسالة' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Edit Message
+app.put('/api/messages/:id', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const messageId = req.params.id;
+    const { content } = req.body;
+
+    const { rowCount } = await db.query(
+      "UPDATE messages SET content = $1 WHERE id = $2 AND sender_id = $3",
+      [content, messageId, decoded.id]
+    );
+
+    if (rowCount === 0) return res.status(403).json({ message: 'غير مسموح بتعديل هذه الرسالة' });
+    res.json({ message: 'تم تعديل الرسالة' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

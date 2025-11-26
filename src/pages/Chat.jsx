@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Trash2, Edit2, MoreVertical, X, Check, AlertTriangle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const Avatar = ({ url, username, size = "w-10 h-10", textSize = "text-lg" }) => {
     const [error, setError] = useState(false);
@@ -24,12 +27,15 @@ const Avatar = ({ url, username, size = "w-10 h-10", textSize = "text-lg" }) => 
 };
 
 const Chat = () => {
+    const navigate = useNavigate();
     const [friends, setFriends] = useState([]);
     const [selectedFriend, setSelectedFriend] = useState(null);
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
     const messagesEndRef = useRef(null);
     const [currentUser, setCurrentUser] = useState(null);
+    const [editingMessage, setEditingMessage] = useState(null); // { id, content }
+    const [editContent, setEditContent] = useState('');
 
     useEffect(() => {
         const user = JSON.parse(localStorage.getItem('rawi_user'));
@@ -46,8 +52,10 @@ const Chat = () => {
     }, [selectedFriend]);
 
     useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
+        if (!editingMessage) {
+            scrollToBottom();
+        }
+    }, [messages, editingMessage]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -108,6 +116,69 @@ const Chat = () => {
         }
     };
 
+    const handleDeleteConversation = async () => {
+        if (!window.confirm('هل أنت متأكد من حذف المحادثة بالكامل؟ لا يمكن التراجع عن هذا الإجراء.')) return;
+
+        const token = localStorage.getItem('rawi_token');
+        try {
+            const res = await fetch(`/api/messages/conversation/${selectedFriend.id}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.ok) {
+                setMessages([]);
+                alert('تم حذف المحادثة');
+            }
+        } catch (error) {
+            console.error('Error deleting conversation:', error);
+        }
+    };
+
+    const handleDeleteMessage = async (messageId) => {
+        if (!window.confirm('حذف هذه الرسالة؟')) return;
+
+        const token = localStorage.getItem('rawi_token');
+        try {
+            const res = await fetch(`/api/messages/${messageId}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.ok) {
+                setMessages(messages.filter(m => m.id !== messageId));
+            }
+        } catch (error) {
+            console.error('Error deleting message:', error);
+        }
+    };
+
+    const startEditing = (msg) => {
+        setEditingMessage(msg);
+        setEditContent(msg.content);
+    };
+
+    const handleEditMessage = async () => {
+        if (!editContent.trim()) return;
+
+        const token = localStorage.getItem('rawi_token');
+        try {
+            const res = await fetch(`/api/messages/${editingMessage.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({ content: editContent })
+            });
+            if (res.ok) {
+                setMessages(messages.map(m => m.id === editingMessage.id ? { ...m, content: editContent } : m));
+                setEditingMessage(null);
+                setEditContent('');
+            }
+        } catch (error) {
+            console.error('Error editing message:', error);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-black text-white pt-20 flex" dir="rtl">
             {/* Sidebar - Friends List */}
@@ -134,21 +205,62 @@ const Chat = () => {
             <div className="flex-1 flex flex-col bg-black">
                 {selectedFriend ? (
                     <>
-                        <div className="p-4 border-b border-gray-800 bg-gray-900/30 flex items-center gap-3">
-                            <Avatar url={selectedFriend.avatar_url} username={selectedFriend.username} size="w-8 h-8" textSize="text-sm" />
-                            <span className="font-bold text-lg">{selectedFriend.username}</span>
+                        <div className="p-4 border-b border-gray-800 bg-gray-900/30 flex items-center justify-between">
+                            <div
+                                className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+                                onClick={() => navigate(`/profile/${selectedFriend.id}`)}
+                                title="عرض الملف الشخصي"
+                            >
+                                <Avatar url={selectedFriend.avatar_url} username={selectedFriend.username} size="w-10 h-10" textSize="text-lg" />
+                                <span className="font-bold text-lg">{selectedFriend.username}</span>
+                            </div>
+
+                            <button
+                                onClick={handleDeleteConversation}
+                                className="text-red-400 hover:bg-red-500/10 p-2 rounded-full transition-colors"
+                                title="حذف المحادثة بالكامل"
+                            >
+                                <Trash2 size={20} />
+                            </button>
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-4 space-y-4">
                             {messages.map(msg => {
                                 const isMe = msg.sender_id === currentUser?.id;
+                                const isEditing = editingMessage?.id === msg.id;
+
                                 return (
-                                    <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`max-w-[70%] px-4 py-2 rounded-2xl ${isMe ? 'bg-green-600 text-white rounded-br-none' : 'bg-gray-800 text-gray-200 rounded-bl-none'}`}>
-                                            <p>{msg.content}</p>
-                                            <span className="text-xs opacity-50 block mt-1 text-right">
-                                                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            </span>
+                                    <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} group`}>
+                                        <div className={`max-w-[70%] px-4 py-2 rounded-2xl relative ${isMe ? 'bg-green-600 text-white rounded-br-none' : 'bg-gray-800 text-gray-200 rounded-bl-none'}`}>
+                                            {isEditing ? (
+                                                <div className="flex flex-col gap-2 min-w-[200px]">
+                                                    <input
+                                                        type="text"
+                                                        value={editContent}
+                                                        onChange={(e) => setEditContent(e.target.value)}
+                                                        className="bg-black/20 text-white p-1 rounded outline-none border border-white/20"
+                                                        autoFocus
+                                                    />
+                                                    <div className="flex justify-end gap-2">
+                                                        <button onClick={() => setEditingMessage(null)} className="text-xs bg-black/20 px-2 py-1 rounded hover:bg-black/40">إلغاء</button>
+                                                        <button onClick={handleEditMessage} className="text-xs bg-white/20 px-2 py-1 rounded hover:bg-white/30">حفظ</button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <p>{msg.content}</p>
+                                                    <span className="text-xs opacity-50 block mt-1 text-right">
+                                                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
+
+                                                    {isMe && (
+                                                        <div className="absolute top-0 left-0 -translate-x-full px-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 items-center h-full">
+                                                            <button onClick={() => startEditing(msg)} className="p-1 text-gray-400 hover:text-white bg-black/50 rounded-full"><Edit2 size={12} /></button>
+                                                            <button onClick={() => handleDeleteMessage(msg.id)} className="p-1 text-red-400 hover:text-red-300 bg-black/50 rounded-full"><Trash2 size={12} /></button>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                 );
