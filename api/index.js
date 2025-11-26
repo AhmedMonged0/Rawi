@@ -72,6 +72,11 @@ app.get('/api/init-db', async (req, res) => {
       );
     `);
 
+    // تحديث جدول الكتب (للحالات القديمة)
+    try { await db.query(`ALTER TABLE books ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id)`); } catch (e) { schemaErrors.push('books.user_id: ' + e.message); }
+    try { await db.query(`ALTER TABLE books ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'approved'`); } catch (e) { schemaErrors.push('books.status: ' + e.message); }
+    try { await db.query(`ALTER TABLE books ADD COLUMN IF NOT EXISTS admin_feedback TEXT`); } catch (e) { schemaErrors.push('books.admin_feedback: ' + e.message); }
+
     // جدول الصداقات
     await db.query(`
       CREATE TABLE IF NOT EXISTS connections (
@@ -253,6 +258,38 @@ app.delete('/api/books/:id', async (req, res) => {
     await db.query('DELETE FROM books WHERE id = $1', [req.params.id]);
     res.json({ message: 'تم حذف الكتاب' });
   } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// DEBUG: List all users
+app.get('/api/debug/users', async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT id, username, email FROM users');
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// 13. User Profile
+app.get('/api/users/:id', async (req, res) => {
+  console.log(`Fetching user with ID: ${req.params.id}`);
+  try {
+    const { rows } = await db.query('SELECT id, username, avatar_url, created_at FROM users WHERE id = $1', [req.params.id]);
+    console.log(`Found ${rows.length} users for ID ${req.params.id}`);
+
+    if (rows.length === 0) return res.status(404).json({ message: 'المستخدم غير موجود' });
+
+    // Get published books count
+    const { rows: booksRows } = await db.query("SELECT COUNT(*) FROM books WHERE user_id = $1 AND status = 'approved'", [req.params.id]);
+
+    const user = rows[0];
+    user.published_books = parseInt(booksRows[0].count);
+
+    res.json(user);
+  } catch (error) {
+    console.error(`Error fetching user ${req.params.id}:`, error);
     res.status(500).json({ message: error.message });
   }
 });
