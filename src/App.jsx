@@ -3,6 +3,11 @@ import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-route
 import Home from './pages/Home';
 import AdminLogin from './pages/AdminLogin';
 import Profile from './components/Profile';
+import UserProfile from './pages/UserProfile';
+import BookSubmission from './pages/BookSubmission';
+import AdminDashboard from './pages/AdminDashboard';
+import UserSearch from './pages/UserSearch';
+import Chat from './pages/Chat';
 
 const ProfileWrapper = () => {
   const navigate = useNavigate();
@@ -35,6 +40,11 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/profile" element={<ProfileWrapper />} />
+        <Route path="/profile/:id" element={<UserProfile />} />
+        <Route path="/submit" element={<BookSubmission />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/search" element={<UserSearch />} />
+        <Route path="/chat" element={<Chat />} />
         <Route path="/rawi-admin-secret" element={<AdminLogin />} />
       </Routes>
     </Router>

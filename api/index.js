@@ -50,124 +50,12 @@ app.get('/api/init-db', async (req, res) => {
 
     // تحديث عمود الصورة ليكون TEXT بدلاً من VARCHAR لدعم Base64
     try {
-      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`);
-      await db.query(`ALTER TABLE users ALTER COLUMN avatar_url TYPE TEXT`);
-    } catch (e) {
-      schemaErrors.push('avatar_url: ' + e.message);
-    }
-
-    // جدول الكتب
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS books (
-        id SERIAL PRIMARY KEY,
-        title VARCHAR(255) NOT NULL,
-        author VARCHAR(255) NOT NULL,
-        category VARCHAR(100),
-        description TEXT,
-        image_url TEXT,
-        pdf_url TEXT,
-        pages INTEGER,
-        language VARCHAR(50) DEFAULT 'العربية',
-        is_new BOOLEAN DEFAULT FALSE,
-        rating DECIMAL(2,1) DEFAULT 5.0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    // تحديث أعمدة الكتب لتدعم Base64
-    try { await db.query(`ALTER TABLE books ALTER COLUMN image_url TYPE TEXT`); } catch (e) { schemaErrors.push('alter books image_url: ' + e.message); }
-    try { await db.query(`ALTER TABLE books ALTER COLUMN pdf_url TYPE TEXT`); } catch (e) { schemaErrors.push('alter books pdf_url: ' + e.message); }
-
-    // حذف عمود السعر القديم (إذا كان موجوداً)
-    try { await db.query(`ALTER TABLE books DROP COLUMN IF EXISTS price`); } catch (e) { schemaErrors.push('drop price: ' + e.message); }
-
-    // جدول المفضلة
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS favorites (
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        book_id INTEGER REFERENCES books(id) ON DELETE CASCADE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (user_id, book_id)
-      );
-    `);
-
-    // إضافة بيانات أولية للكتب (إذا كان الجدول فارغاً)
-    const { rows: bookRows } = await db.query('SELECT COUNT(*) FROM books');
-    if (parseInt(bookRows[0].count) === 0) {
-      const initialBooks = [
-        {
-          title: "خوارزميات المستقبل",
-          author: "د. أحمد الرفاعي",
-          category: "تكنولوجيا",
-          description: "رحلة مذهلة في عالم الذكاء الاصطناعي وكيف سيغير حياتنا.",
-          image_url: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=800",
-          pdf_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-          pages: 320,
-          is_new: true,
-          rating: 4.8
-        },
-        {
-          title: "صدى الصمت",
-          author: "سارة الجابري",
-          category: "روايات",
-          description: "رواية مؤثرة تحكي قصة كفاح وأمل في زمن الصعاب.",
-          image_url: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=800",
-          pdf_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-          pages: 215,
-          is_new: false,
-          rating: 4.5
-        },
-        {
-          title: "أسرار الكون",
-          author: "مارك تايسون",
-          category: "علوم",
-          description: "استكشاف لأعماق الفضاء والثقوب السوداء بلغة مبسطة.",
-          image_url: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=800",
-          pdf_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-          pages: 400,
-          is_new: true,
-          rating: 4.9
-        }
-      ];
-
-      for (const book of initialBooks) {
-        await db.query(
-          `INSERT INTO books (title, author, category, description, image_url, pdf_url, pages, is_new, rating)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [book.title, book.author, book.category, book.description, book.image_url, book.pdf_url, book.pages, book.is_new, book.rating]
-        );
-      }
-    }
-
-    // إضافة أو تحديث مستخدم أدمن افتراضي
-    const adminPasswordHash = await bcrypt.hash('admin123', 10);
-    const { rows: adminRows } = await db.query("SELECT * FROM users WHERE username = 'admin'");
-
-    let adminStatus = '';
-    if (adminRows.length === 0) {
-      await db.query(
-        'INSERT INTO users (username, email, password_hash, role) VALUES ($1, $2, $3, $4)',
-        ['admin', 'admin@rawi.com', adminPasswordHash, 'admin']
-      );
-      adminStatus = 'Admin user CREATED';
-    } else {
-      await db.query(
-        'UPDATE users SET password_hash = $1, role = $2 WHERE username = $3',
-        [adminPasswordHash, 'admin', 'admin']
-      );
-      adminStatus = 'Admin user UPDATED';
-    }
-
-    res.send(`Database initialized! ${adminStatus} Errors: ${JSON.stringify(schemaErrors)}`);
-  } catch (error) {
-    res.status(500).send('Error initializing database: ' + error.message);
-  }
-});
+    });
 
 // 3. جلب جميع الكتب
 app.get('/api/books', async (req, res) => {
   try {
-    const { rows } = await db.query('SELECT * FROM books ORDER BY created_at DESC');
+    const { rows } = await db.query("SELECT * FROM books WHERE status = 'approved' OR status IS NULL ORDER BY created_at DESC");
     res.json(rows);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -202,8 +90,8 @@ app.post('/api/books', async (req, res) => {
     try { await db.query(`ALTER TABLE books DROP COLUMN IF EXISTS price`); } catch (e) { console.log('Auto-drop price error:', e.message); }
 
     const { rows } = await db.query(
-      `INSERT INTO books (title, author, category, description, image_url, pdf_url, pages, language, is_new)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      `INSERT INTO books(title, author, category, description, image_url, pdf_url, pages, language, is_new)
+    VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING * `,
       [title, author, category, description, image_url, pdf_url, pagesInt, language || 'العربية', is_new || false]
     );
     res.status(201).json(rows[0]);
@@ -226,8 +114,8 @@ app.put('/api/books/:id', async (req, res) => {
     const pagesInt = pages ? parseInt(pages) : 0;
 
     const { rows } = await db.query(
-      `UPDATE books SET title=$1, author=$2, category=$3, description=$4, image_url=$5, pdf_url=$6, pages=$7, language=$8, is_new=$9
-       WHERE id=$10 RETURNING *`,
+      `UPDATE books SET title = $1, author = $2, category = $3, description = $4, image_url = $5, pdf_url = $6, pages = $7, language = $8, is_new = $9
+       WHERE id = $10 RETURNING * `,
       [title, author, category, description, image_url, pdf_url, pagesInt, language, is_new, req.params.id]
     );
     res.json(rows[0]);
@@ -419,7 +307,7 @@ app.get('/api/users/:id/favorites', async (req, res) => {
       SELECT b.* FROM books b
       JOIN favorites f ON b.id = f.book_id
       WHERE f.user_id = $1
-    `, [req.params.id]);
+      `, [req.params.id]);
 
     res.json(rows);
   } catch (error) {
@@ -470,7 +358,7 @@ app.post('/api/chat', async (req, res) => {
 
   for (const model of models) {
     try {
-      console.log(`Attempting model: ${model}`);
+      console.log(`Attempting model: ${model} `);
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
       const response = await fetch(url, {
         method: 'POST',
@@ -525,6 +413,254 @@ app.post('/api/chat', async (req, res) => {
 
   console.error('All models failed. Last error:', lastError);
   res.status(500).json({ error: `فشل الاتصال بجميع الموديلات. الخطأ الأخير: ${lastError}` });
+});
+
+// 12. User Search
+app.get('/api/users/search', async (req, res) => {
+  const { q } = req.query;
+  if (!q) return res.json([]);
+  try {
+    const { rows } = await db.query(
+      "SELECT id, username, avatar_url FROM users WHERE username ILIKE $1 LIMIT 20",
+      [`%${q}%`]
+    );
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// 13. User Profile
+app.get('/api/users/:id', async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT id, username, avatar_url, created_at FROM users WHERE id = $1', [req.params.id]);
+    if (rows.length === 0) return res.status(404).json({ message: 'المستخدم غير موجود' });
+
+    // Get published books count
+    const { rows: booksRows } = await db.query("SELECT COUNT(*) FROM books WHERE user_id = $1 AND status = 'approved'", [req.params.id]);
+
+    const user = rows[0];
+    user.published_books = parseInt(booksRows[0].count);
+
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// 14. Submit Book
+app.post('/api/books/submit', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const { title, author, category, description, image_url, pdf_url, pages, language } = req.body;
+    const pagesInt = pages ? parseInt(pages) : 0;
+
+    const { rows } = await db.query(
+      `INSERT INTO books (title, author, category, description, image_url, pdf_url, pages, language, is_new, user_id, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending') RETURNING *`,
+      [title, author, category, description, image_url, pdf_url, pagesInt, language || 'العربية', true, decoded.id]
+    );
+    res.status(201).json(rows[0]);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// 15. Connections
+// Send Request
+app.post('/api/connections/request', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const { receiverId } = req.body;
+
+    if (decoded.id == receiverId) return res.status(400).json({ message: 'لا يمكنك إرسال طلب لنفسك' });
+
+    await db.query(
+      "INSERT INTO connections (sender_id, receiver_id, status) VALUES ($1, $2, 'pending') ON CONFLICT DO NOTHING",
+      [decoded.id, receiverId]
+    );
+    res.json({ message: 'تم إرسال الطلب' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Respond to Request
+app.put('/api/connections/:id/respond', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const { status } = req.body; // 'accepted' or 'rejected'
+
+    if (!['accepted', 'rejected'].includes(status)) return res.status(400).json({ message: 'حالة غير صالحة' });
+
+    await db.query(
+      "UPDATE connections SET status = $1 WHERE id = $2 AND receiver_id = $3",
+      [status, req.params.id, decoded.id]
+    );
+    res.json({ message: `تم ${status === 'accepted' ? 'قبول' : 'رفض'} الطلب` });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get Connections
+app.get('/api/connections', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    // Friends (accepted)
+    const { rows: friends } = await db.query(`
+      SELECT u.id, u.username, u.avatar_url 
+      FROM users u
+      JOIN connections c ON (u.id = c.sender_id OR u.id = c.receiver_id)
+      WHERE (c.sender_id = $1 OR c.receiver_id = $1) AND c.status = 'accepted' AND u.id != $1
+    `, [decoded.id]);
+
+    // Pending Requests (received)
+    const { rows: pending } = await db.query(`
+      SELECT c.id, u.id as user_id, u.username, u.avatar_url, c.created_at
+      FROM connections c
+      JOIN users u ON c.sender_id = u.id
+      WHERE c.receiver_id = $1 AND c.status = 'pending'
+    `, [decoded.id]);
+
+    res.json({ friends, pending });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Check Connection Status
+app.get('/api/connections/status/:userId', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const otherUserId = req.params.userId;
+
+    const { rows } = await db.query(`
+      SELECT * FROM connections 
+      WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)
+    `, [decoded.id, otherUserId]);
+
+    if (rows.length === 0) return res.json({ status: 'none' });
+
+    const conn = rows[0];
+    if (conn.status === 'accepted') return res.json({ status: 'friends' });
+    if (conn.status === 'pending') {
+      return res.json({ status: 'pending', isSender: conn.sender_id === decoded.id });
+    }
+    res.json({ status: 'none' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// 16. Chat
+// Send Message
+app.post('/api/messages', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const { receiverId, content } = req.body;
+
+    // Check if friends
+    const { rows: conn } = await db.query(`
+      SELECT * FROM connections 
+      WHERE ((sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)) AND status = 'accepted'
+    `, [decoded.id, receiverId]);
+
+    if (conn.length === 0) return res.status(403).json({ message: 'يجب أن تكونوا أصدقاء للمراسلة' });
+
+    const { rows } = await db.query(
+      "INSERT INTO messages (sender_id, receiver_id, content) VALUES ($1, $2, $3) RETURNING *",
+      [decoded.id, receiverId, content]
+    );
+    res.json(rows[0]);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get Messages
+app.get('/api/messages/:userId', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const otherUserId = req.params.userId;
+
+    const { rows } = await db.query(`
+      SELECT * FROM messages 
+      WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)
+      ORDER BY created_at ASC
+    `, [decoded.id, otherUserId]);
+
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// 17. Admin Book Approvals
+app.get('/api/admin/books/pending', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح' });
+
+    const { rows } = await db.query("SELECT b.*, u.username as author_name FROM books b LEFT JOIN users u ON b.user_id = u.id WHERE b.status = 'pending' ORDER BY b.created_at DESC");
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+app.put('/api/admin/books/:id/status', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح' });
+
+    const { status, feedback } = req.body;
+
+    await db.query(
+      "UPDATE books SET status = $1, admin_feedback = $2 WHERE id = $3",
+      [status, feedback, req.params.id]
+    );
+    res.json({ message: 'تم تحديث حالة الكتاب' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 });
 
 export default app;
