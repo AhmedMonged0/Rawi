@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Home from './pages/Home';
 import AdminLogin from './pages/AdminLogin';
 import UserProfile from './pages/UserProfile';
@@ -19,6 +19,8 @@ function App() {
         <Route path="/search" element={<UserSearch />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/rawi-admin-secret" element={<AdminLogin />} />
+        {/* Catch-all route for 404s */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );
