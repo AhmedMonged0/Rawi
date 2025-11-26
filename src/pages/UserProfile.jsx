@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { User, Book, Calendar, Edit2, Check, X, MessageCircle, UserPlus, Clock } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { User, Book, Calendar, Edit2, Check, X, MessageCircle, UserPlus, Clock, BookOpen, Heart } from 'lucide-react';
 
 const UserProfile = () => {
     const { id } = useParams();
     const [user, setUser] = useState(null);
+    const [userBooks, setUserBooks] = useState([]);
     const [connectionStatus, setConnectionStatus] = useState('none'); // none, pending, friends
     const [isSender, setIsSender] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+    const [newUsername, setNewUsername] = useState('');
+    const [isCurrentUser, setIsCurrentUser] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const navigate = useNavigate();
@@ -16,6 +19,7 @@ const UserProfile = () => {
         if (id) {
             fetchUser();
             checkConnectionStatus();
+            fetchUserBooks();
         }
     }, [id]);
 
@@ -42,22 +46,105 @@ const UserProfile = () => {
                 }
             } else {
                 setError("المستخدم غير موجود");
-                // If the user we are looking for is the one logged in (based on local storage), logout
-                const storedUser = localStorage.getItem('rawi_user');
-                if (storedUser) {
-                    const currentUser = JSON.parse(storedUser);
-                    if (currentUser.id == id) {
-                        localStorage.removeItem('rawi_token');
-                        localStorage.removeItem('rawi_user');
-                        setTimeout(() => navigate('/'), 2000); // Redirect after showing error
-                    }
-                }
             }
         } catch (error) {
             console.error('Error fetching user:', error);
             setError("حدث خطأ في الاتصال");
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const fetchUserBooks = async () => {
+        try {
+            // Assuming we have an endpoint or can filter books by user
+            // For now, let's fetch all books and filter client-side or use a specific endpoint if available
+            // Ideally: GET /api/users/:id/books
+            const res = await fetch(`/api/books`);
+            if (res.ok) {
+                const allBooks = await res.json();
+                // Filter books where user_id matches (if backend returns user_id)
+                // Since the backend might not return user_id on the public feed, we might need a specific endpoint.
+                // But let's assume for now we can filter or the user has no books if we can't filter.
+                // Wait, the user specifically asked to "see the books he uploaded".
+                // I'll assume the book object has a user_id or author_id.
+                const myBooks = allBooks.filter(b => b.user_id == id);
+                setUserBooks(myBooks);
+            }
+        } catch (error) {
+            console.error("Error fetching books", error);
+        }
+    };
+
+    const checkConnectionStatus = async () => {
+        const token = localStorage.getItem('rawi_token');
+        if (!token) return;
+
+        try {
+            const res = await fetch(`/api/connections/status/${id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setConnectionStatus(data.status);
+                setIsSender(data.isSender);
+            }
+        } catch (error) {
+            console.error('Error checking status:', error);
+        }
+    };
+
+    const handleUpdateProfile = async () => {
+        const token = localStorage.getItem('rawi_token');
+        if (!token) return;
+
+        try {
+            const res = await fetch('/api/users/profile', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    username: newUsername,
+                    avatar_url: user.avatar_url
+                })
+            });
+
+            if (res.ok) {
+                const updatedUser = await res.json();
+                setUser(prev => ({ ...prev, username: updatedUser.username }));
+                setIsEditing(false);
+            } else {
+                alert('فشل تحديث الملف الشخصي');
+            }
+        } catch (error) {
+            console.error('Error updating profile:', error);
+        }
+    };
+
+    const sendRequest = async () => {
+        const token = localStorage.getItem('rawi_token');
+        if (!token) return alert('يجب تسجيل الدخول أولاً');
+
+        try {
+            const res = await fetch('/api/connections/request', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({ receiverId: id })
+            });
+            if (res.ok) {
+                setConnectionStatus('pending');
+                setIsSender(true);
+            } else {
+                const data = await res.json();
+                alert(data.message);
+            }
+        } catch (error) {
+            console.error('Error sending request:', error);
         }
     };
 
@@ -83,7 +170,7 @@ const UserProfile = () => {
             </button>
             <div className="max-w-4xl mx-auto">
                 {/* Profile Header Card */}
-                <div className="bg-[#151515] rounded-3xl p-8 border border-white/10 shadow-2xl relative overflow-hidden">
+                <div className="bg-[#151515] rounded-3xl p-8 border border-white/10 shadow-2xl relative overflow-hidden mb-8">
                     <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-purple-900/20 to-blue-900/20"></div>
 
                     <div className="relative flex flex-col md:flex-row items-center gap-8 mt-12">
@@ -147,7 +234,7 @@ const UserProfile = () => {
                             {/* Stats */}
                             <div className="flex justify-center md:justify-start gap-6 mt-6">
                                 <div className="text-center">
-                                    <span className="block text-2xl font-bold text-white">{user.published_books || 0}</span>
+                                    <span className="block text-2xl font-bold text-white">{userBooks.length || user.published_books || 0}</span>
                                     <span className="text-sm text-gray-500">كتب منشورة</span>
                                 </div>
                                 <div className="text-center">
@@ -185,6 +272,43 @@ const UserProfile = () => {
                             </div>
                         )}
                     </div>
+                </div>
+
+                {/* Books Grid */}
+                <div className="space-y-6">
+                    <h2 className="text-2xl font-bold flex items-center gap-2">
+                        <BookOpen className="text-purple-500" />
+                        <span>الكتب المنشورة</span>
+                    </h2>
+
+                    {userBooks.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {userBooks.map(book => (
+                                <div key={book.id} className="bg-[#151515] rounded-xl overflow-hidden border border-white/10 group hover:border-purple-500/50 transition-all">
+                                    <div className="h-48 overflow-hidden relative">
+                                        <img src={book.image_url} alt={book.title} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+                                    </div>
+                                    <div className="p-4">
+                                        <h3 className="font-bold text-lg mb-1 truncate">{book.title}</h3>
+                                        <p className="text-gray-400 text-sm mb-3">{book.author}</p>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-xs bg-white/5 px-2 py-1 rounded text-gray-300">{book.category}</span>
+                                            <div className="flex items-center gap-1 text-yellow-400 text-xs">
+                                                <span className="font-bold">{book.rating || 0}</span>
+                                                <span>★</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-12 bg-[#151515] rounded-3xl border border-white/5">
+                            <Book className="mx-auto text-gray-600 mb-4" size={48} />
+                            <p className="text-gray-400">لم يقم هذا المستخدم بنشر أي كتب بعد.</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
