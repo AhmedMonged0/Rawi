@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Trash2, Edit2, MoreVertical, X, Check, AlertTriangle } from 'lucide-react';
+import { Trash2, Edit2, MoreVertical, X, Check, AlertTriangle, Copy } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Avatar = ({ url, username, size = "w-10 h-10", textSize = "text-lg" }) => {
@@ -35,8 +35,13 @@ const Chat = () => {
     const [newMessage, setNewMessage] = useState('');
     const messagesEndRef = useRef(null);
     const [currentUser, setCurrentUser] = useState(null);
+
+    // Edit State
     const [editingMessage, setEditingMessage] = useState(null); // { id, content }
     const [editContent, setEditContent] = useState('');
+
+    // Context Menu State
+    const [contextMenu, setContextMenu] = useState(null); // { x, y, message }
 
     useEffect(() => {
         const user = JSON.parse(localStorage.getItem('rawi_user'));
@@ -67,6 +72,13 @@ const Chat = () => {
             scrollToBottom();
         }
     }, [messages, editingMessage]);
+
+    // Close context menu on click anywhere
+    useEffect(() => {
+        const handleClick = () => setContextMenu(null);
+        window.addEventListener('click', handleClick);
+        return () => window.removeEventListener('click', handleClick);
+    }, []);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -165,6 +177,7 @@ const Chat = () => {
     const startEditing = (msg) => {
         setEditingMessage(msg);
         setEditContent(msg.content);
+        setContextMenu(null);
     };
 
     const handleEditMessage = async () => {
@@ -195,6 +208,20 @@ const Chat = () => {
         }
     };
 
+    const handleContextMenu = (e, msg) => {
+        e.preventDefault();
+        setContextMenu({
+            x: e.pageX,
+            y: e.pageY,
+            message: msg
+        });
+    };
+
+    const handleCopyMessage = (content) => {
+        navigator.clipboard.writeText(content);
+        setContextMenu(null);
+    };
+
     return (
         <div className="h-screen bg-black text-white pt-20 flex overflow-hidden max-w-full" dir="rtl">
             {/* Sidebar - Friends List */}
@@ -218,7 +245,7 @@ const Chat = () => {
             </div>
 
             {/* Chat Area */}
-            <div className="flex-1 flex flex-col bg-black h-full overflow-hidden">
+            <div className="flex-1 flex flex-col bg-black h-full overflow-hidden relative">
                 {selectedFriend ? (
                     <>
                         <div className="p-4 border-b border-gray-800 bg-gray-900/30 flex items-center justify-between shrink-0">
@@ -247,7 +274,10 @@ const Chat = () => {
 
                                 return (
                                     <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} group`}>
-                                        <div className={`max-w-[70%] px-4 py-2 rounded-2xl relative ${isMe ? 'bg-green-600 text-white rounded-br-none' : 'bg-gray-800 text-gray-200 rounded-bl-none'}`}>
+                                        <div
+                                            className={`max-w-[70%] px-4 py-2 rounded-2xl relative cursor-context-menu ${isMe ? 'bg-green-600 text-white rounded-br-none' : 'bg-gray-800 text-gray-200 rounded-bl-none'}`}
+                                            onContextMenu={(e) => handleContextMenu(e, msg)}
+                                        >
                                             {isEditing ? (
                                                 <div className="flex flex-col gap-2 min-w-[200px]">
                                                     <input
@@ -271,13 +301,6 @@ const Chat = () => {
                                                     <span className="text-xs opacity-50 block mt-1 text-right">
                                                         {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                     </span>
-
-                                                    {isMe && (
-                                                        <div className="absolute top-0 left-0 -translate-x-full px-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 items-center h-full">
-                                                            <button onClick={() => startEditing(msg)} className="p-1 text-gray-400 hover:text-white bg-black/50 rounded-full"><Edit2 size={12} /></button>
-                                                            <button onClick={() => handleDeleteMessage(msg.id)} className="p-1 text-red-400 hover:text-red-300 bg-black/50 rounded-full"><Trash2 size={12} /></button>
-                                                        </div>
-                                                    )}
                                                 </>
                                             )}
                                         </div>
@@ -305,6 +328,46 @@ const Chat = () => {
                         <p>اختر صديقاً لبدء المحادثة</p>
                     </div>
                 )}
+
+                {/* Context Menu */}
+                <AnimatePresence>
+                    {contextMenu && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            style={{ top: contextMenu.y, left: contextMenu.x }}
+                            className="fixed z-50 bg-gray-800 border border-gray-700 rounded-lg shadow-xl overflow-hidden min-w-[150px]"
+                        >
+                            <button
+                                onClick={() => handleCopyMessage(contextMenu.message.content)}
+                                className="w-full text-right px-4 py-2 hover:bg-gray-700 flex items-center gap-2 text-sm"
+                            >
+                                <Copy size={14} /> نسخ
+                            </button>
+
+                            {contextMenu.message.sender_id === currentUser?.id && (
+                                <>
+                                    <button
+                                        onClick={() => startEditing(contextMenu.message)}
+                                        className="w-full text-right px-4 py-2 hover:bg-gray-700 flex items-center gap-2 text-sm"
+                                    >
+                                        <Edit2 size={14} /> تعديل
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            handleDeleteMessage(contextMenu.message.id);
+                                            setContextMenu(null);
+                                        }}
+                                        className="w-full text-right px-4 py-2 hover:bg-red-900/30 text-red-400 flex items-center gap-2 text-sm"
+                                    >
+                                        <Trash2 size={14} /> حذف
+                                    </button>
+                                </>
+                            )}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
         </div>
     );
