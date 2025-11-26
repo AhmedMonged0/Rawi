@@ -96,9 +96,14 @@ app.get('/api/init-db', async (req, res) => {
         receiver_id INTEGER REFERENCES users(id),
         content TEXT NOT NULL,
         is_read BOOLEAN DEFAULT FALSE,
+        is_edited BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    // تحديث جدول الرسائل (للحالات القديمة)
+    try { await db.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_edited BOOLEAN DEFAULT FALSE`); } catch (e) { schemaErrors.push('messages.is_edited: ' + e.message); }
+
 
     // جدول المفضلة
     await db.query(`
@@ -827,7 +832,7 @@ app.put('/api/messages/:id', async (req, res) => {
     const { content } = req.body;
 
     const { rowCount } = await db.query(
-      "UPDATE messages SET content = $1 WHERE id = $2 AND sender_id = $3",
+      "UPDATE messages SET content = $1, is_edited = TRUE WHERE id = $2 AND sender_id = $3",
       [content, messageId, decoded.id]
     );
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Trash2, Edit2, MoreVertical, X, Check, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -28,6 +28,7 @@ const Avatar = ({ url, username, size = "w-10 h-10", textSize = "text-lg" }) => 
 
 const Chat = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [friends, setFriends] = useState([]);
     const [selectedFriend, setSelectedFriend] = useState(null);
     const [messages, setMessages] = useState([]);
@@ -42,6 +43,19 @@ const Chat = () => {
         setCurrentUser(user);
         fetchConnections();
     }, []);
+
+    // Handle auto-selection from profile page
+    useEffect(() => {
+        if (location.state?.selectedUserId && friends.length > 0) {
+            const friendToSelect = friends.find(f => f.id == location.state.selectedUserId);
+            if (friendToSelect) {
+                setSelectedFriend(friendToSelect);
+                // Clear state to prevent re-selection on refresh if not desired, 
+                // but keeping it might be fine. 
+                // window.history.replaceState({}, document.title);
+            }
+        }
+    }, [location.state, friends]);
 
     useEffect(() => {
         if (selectedFriend) {
@@ -170,7 +184,7 @@ const Chat = () => {
                 body: JSON.stringify({ content: editContent })
             });
             if (res.ok) {
-                setMessages(messages.map(m => m.id === editingMessage.id ? { ...m, content: editContent } : m));
+                setMessages(messages.map(m => m.id === editingMessage.id ? { ...m, content: editContent, is_edited: true } : m));
                 setEditingMessage(null);
                 setEditContent('');
             }
@@ -180,13 +194,13 @@ const Chat = () => {
     };
 
     return (
-        <div className="min-h-screen bg-black text-white pt-20 flex" dir="rtl">
+        <div className="h-screen bg-black text-white pt-20 flex overflow-hidden" dir="rtl">
             {/* Sidebar - Friends List */}
-            <div className="w-1/4 border-l border-gray-800 bg-gray-900/50">
+            <div className="w-1/4 border-l border-gray-800 bg-gray-900/50 flex flex-col">
                 <div className="p-4 border-b border-gray-800">
                     <h2 className="text-xl font-bold text-green-400">الأصدقاء</h2>
                 </div>
-                <div className="overflow-y-auto h-[calc(100vh-80px)]">
+                <div className="overflow-y-auto flex-1">
                     {friends.map(friend => (
                         <div
                             key={friend.id}
@@ -202,10 +216,10 @@ const Chat = () => {
             </div>
 
             {/* Chat Area */}
-            <div className="flex-1 flex flex-col bg-black">
+            <div className="flex-1 flex flex-col bg-black h-full">
                 {selectedFriend ? (
                     <>
-                        <div className="p-4 border-b border-gray-800 bg-gray-900/30 flex items-center justify-between">
+                        <div className="p-4 border-b border-gray-800 bg-gray-900/30 flex items-center justify-between shrink-0">
                             <div
                                 className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
                                 onClick={() => navigate(`/profile/${selectedFriend.id}`)}
@@ -248,7 +262,10 @@ const Chat = () => {
                                                 </div>
                                             ) : (
                                                 <>
-                                                    <p>{msg.content}</p>
+                                                    <p>
+                                                        {msg.content}
+                                                        {msg.is_edited && <span className="text-[10px] text-white/60 mr-2">(معدل)</span>}
+                                                    </p>
                                                     <span className="text-xs opacity-50 block mt-1 text-right">
                                                         {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                     </span>
@@ -268,7 +285,7 @@ const Chat = () => {
                             <div ref={messagesEndRef} />
                         </div>
 
-                        <form onSubmit={sendMessage} className="p-4 border-t border-gray-800 bg-gray-900/30 flex gap-2">
+                        <form onSubmit={sendMessage} className="p-4 border-t border-gray-800 bg-gray-900/30 flex gap-2 shrink-0">
                             <input
                                 type="text"
                                 className="flex-1 bg-gray-800 border border-gray-700 rounded-full px-4 py-2 text-white focus:border-green-500 outline-none"

@@ -392,8 +392,8 @@ const UserProfile = () => {
                                 <button
                                     onClick={handleFollowToggle}
                                     className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl transition-all font-bold shadow-lg ${isFollowing
-                                            ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                                            : 'bg-white text-black hover:bg-gray-200'
+                                        ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                                        : 'bg-white text-black hover:bg-gray-200'
                                         }`}
                                 >
                                     {isFollowing ? <UserMinus size={20} /> : <UserPlus size={20} />}
@@ -414,7 +414,10 @@ const UserProfile = () => {
                                     </button>
                                 )}
                                 {connectionStatus === 'friends' && (
-                                    <button className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl transition-all font-bold shadow-lg shadow-blue-900/20">
+                                    <button
+                                        onClick={() => navigate('/chat', { state: { selectedUserId: id } })}
+                                        className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl transition-all font-bold shadow-lg shadow-blue-900/20"
+                                    >
                                         <MessageCircle size={20} />
                                         <span>مراسلة</span>
                                     </button>
