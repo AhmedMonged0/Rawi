@@ -9,7 +9,7 @@ const Chat = () => {
     const [currentUser, setCurrentUser] = useState(null);
 
     useEffect(() => {
-        const user = JSON.parse(localStorage.getItem('user'));
+        const user = JSON.parse(localStorage.getItem('rawi_user'));
         setCurrentUser(user);
         fetchConnections();
     }, []);
@@ -31,11 +31,11 @@ const Chat = () => {
     };
 
     const fetchConnections = async () => {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('rawi_token');
         if (!token) return;
 
         try {
-            const res = await fetch('http://localhost:3000/api/connections', {
+            const res = await fetch('/api/connections', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (res.ok) {
@@ -48,9 +48,9 @@ const Chat = () => {
     };
 
     const fetchMessages = async (friendId) => {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('rawi_token');
         try {
-            const res = await fetch(`http://localhost:3000/api/messages/${friendId}`, {
+            const res = await fetch(`/api/messages/${friendId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (res.ok) {
@@ -66,9 +66,9 @@ const Chat = () => {
         e.preventDefault();
         if (!newMessage.trim() || !selectedFriend) return;
 
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('rawi_token');
         try {
-            const res = await fetch('http://localhost:3000/api/messages', {
+            const res = await fetch('/api/messages', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -86,9 +86,9 @@ const Chat = () => {
     };
 
     return (
-        <div className="min-h-screen bg-black text-white pt-20 flex">
+        <div className="min-h-screen bg-black text-white pt-20 flex" dir="rtl">
             {/* Sidebar - Friends List */}
-            <div className="w-1/4 border-r border-gray-800 bg-gray-900/50">
+            <div className="w-1/4 border-l border-gray-800 bg-gray-900/50">
                 <div className="p-4 border-b border-gray-800">
                     <h2 className="text-xl font-bold text-green-400">الأصدقاء</h2>
                 </div>
@@ -97,7 +97,7 @@ const Chat = () => {
                         <div
                             key={friend.id}
                             onClick={() => setSelectedFriend(friend)}
-                            className={`p-4 flex items-center gap-3 cursor-pointer hover:bg-gray-800 transition-colors ${selectedFriend?.id === friend.id ? 'bg-gray-800 border-l-4 border-green-500' : ''}`}
+                            className={`p-4 flex items-center gap-3 cursor-pointer hover:bg-gray-800 transition-colors ${selectedFriend?.id === friend.id ? 'bg-gray-800 border-r-4 border-green-500' : ''}`}
                         >
                             <div className="w-10 h-10 rounded-full bg-gray-700 overflow-hidden">
                                 <img src={friend.avatar_url || 'https://via.placeholder.com/150'} alt={friend.username} className="w-full h-full object-cover" />

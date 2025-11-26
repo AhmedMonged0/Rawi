@@ -8,11 +8,11 @@ const AdminDashboard = () => {
     }, []);
 
     const fetchPendingBooks = async () => {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('rawi_token');
         if (!token) return;
 
         try {
-            const res = await fetch('http://localhost:3000/api/admin/books/pending', {
+            const res = await fetch('/api/admin/books/pending', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (res.ok) {
@@ -25,9 +25,9 @@ const AdminDashboard = () => {
     };
 
     const handleAction = async (bookId, status, feedback = '') => {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('rawi_token');
         try {
-            const res = await fetch(`http://localhost:3000/api/admin/books/${bookId}/status`, {
+            const res = await fetch(`/api/admin/books/${bookId}/status`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -45,7 +45,7 @@ const AdminDashboard = () => {
     };
 
     return (
-        <div className="min-h-screen bg-black text-white p-8 pt-24">
+        <div className="min-h-screen bg-black text-white p-8 pt-24" dir="rtl">
             <h1 className="text-3xl font-bold text-green-400 mb-8 text-center">لوحة تحكم المشرف</h1>
 
             <div className="max-w-6xl mx-auto">

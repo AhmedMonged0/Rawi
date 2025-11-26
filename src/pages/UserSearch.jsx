@@ -10,7 +10,7 @@ const UserSearch = () => {
         if (!query.trim()) return;
 
         try {
-            const res = await fetch(`http://localhost:3000/api/users/search?q=${query}`);
+            const res = await fetch(`/api/users/search?q=${query}`);
             if (res.ok) {
                 const data = await res.json();
                 setResults(data);
@@ -21,7 +21,7 @@ const UserSearch = () => {
     };
 
     return (
-        <div className="min-h-screen bg-black text-white p-8 pt-24">
+        <div className="min-h-screen bg-black text-white p-8 pt-24" dir="rtl">
             <div className="max-w-2xl mx-auto">
                 <h1 className="text-3xl font-bold text-green-400 mb-8 text-center">البحث عن قراء</h1>
 
