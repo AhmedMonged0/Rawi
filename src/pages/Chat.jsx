@@ -1,5 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
 
+const Avatar = ({ url, username, size = "w-10 h-10", textSize = "text-lg" }) => {
+    const [error, setError] = useState(false);
+
+    if (!url || error) {
+        return (
+            <div className={`${size} rounded-full bg-purple-600 flex items-center justify-center text-white font-bold ${textSize}`}>
+                {username ? username.charAt(0).toUpperCase() : '?'}
+            </div>
+        );
+    }
+
+    return (
+        <div className={`${size} rounded-full bg-gray-700 overflow-hidden`}>
+            <img
+                src={url}
+                alt={username}
+                className="w-full h-full object-cover"
+                onError={() => setError(true)}
+            />
+        </div>
+    );
+};
+
 const Chat = () => {
     const [friends, setFriends] = useState([]);
     const [selectedFriend, setSelectedFriend] = useState(null);
@@ -99,9 +122,7 @@ const Chat = () => {
                             onClick={() => setSelectedFriend(friend)}
                             className={`p-4 flex items-center gap-3 cursor-pointer hover:bg-gray-800 transition-colors ${selectedFriend?.id === friend.id ? 'bg-gray-800 border-r-4 border-green-500' : ''}`}
                         >
-                            <div className="w-10 h-10 rounded-full bg-gray-700 overflow-hidden">
-                                <img src={friend.avatar_url || 'https://via.placeholder.com/150'} alt={friend.username} className="w-full h-full object-cover" />
-                            </div>
+                            <Avatar url={friend.avatar_url} username={friend.username} />
                             <span className="font-medium">{friend.username}</span>
                         </div>
                     ))}
@@ -114,9 +135,7 @@ const Chat = () => {
                 {selectedFriend ? (
                     <>
                         <div className="p-4 border-b border-gray-800 bg-gray-900/30 flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-gray-700 overflow-hidden">
-                                <img src={selectedFriend.avatar_url || 'https://via.placeholder.com/150'} alt={selectedFriend.username} className="w-full h-full object-cover" />
-                            </div>
+                            <Avatar url={selectedFriend.avatar_url} username={selectedFriend.username} size="w-8 h-8" textSize="text-sm" />
                             <span className="font-bold text-lg">{selectedFriend.username}</span>
                         </div>
 
