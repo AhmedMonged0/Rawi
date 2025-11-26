@@ -50,9 +50,6 @@ const Chat = () => {
             const friendToSelect = friends.find(f => f.id == location.state.selectedUserId);
             if (friendToSelect) {
                 setSelectedFriend(friendToSelect);
-                // Clear state to prevent re-selection on refresh if not desired, 
-                // but keeping it might be fine. 
-                // window.history.replaceState({}, document.title);
             }
         }
     }, [location.state, friends]);
@@ -183,18 +180,23 @@ const Chat = () => {
                 },
                 body: JSON.stringify({ content: editContent })
             });
+
             if (res.ok) {
-                setMessages(messages.map(m => m.id === editingMessage.id ? { ...m, content: editContent, is_edited: true } : m));
+                setMessages(prev => prev.map(m => m.id === editingMessage.id ? { ...m, content: editContent, is_edited: true } : m));
                 setEditingMessage(null);
                 setEditContent('');
+            } else {
+                const data = await res.json();
+                alert(data.message || 'فشل تعديل الرسالة');
             }
         } catch (error) {
             console.error('Error editing message:', error);
+            alert('حدث خطأ أثناء التعديل');
         }
     };
 
     return (
-        <div className="h-screen bg-black text-white pt-20 flex overflow-hidden" dir="rtl">
+        <div className="h-screen bg-black text-white pt-20 flex overflow-hidden max-w-full" dir="rtl">
             {/* Sidebar - Friends List */}
             <div className="w-1/4 border-l border-gray-800 bg-gray-900/50 flex flex-col">
                 <div className="p-4 border-b border-gray-800">
@@ -216,7 +218,7 @@ const Chat = () => {
             </div>
 
             {/* Chat Area */}
-            <div className="flex-1 flex flex-col bg-black h-full">
+            <div className="flex-1 flex flex-col bg-black h-full overflow-hidden">
                 {selectedFriend ? (
                     <>
                         <div className="p-4 border-b border-gray-800 bg-gray-900/30 flex items-center justify-between shrink-0">
