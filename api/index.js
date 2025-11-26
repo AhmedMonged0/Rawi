@@ -205,6 +205,28 @@ app.get('/api/books/:id', async (req, res) => {
   }
 });
 
+// إضافة كتاب (للمستخدمين - يتطلب موافقة)
+app.post('/api/books/submit', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const { title, author, category, description, image_url, pdf_url, pages, language } = req.body;
+    const pagesInt = pages ? parseInt(pages) : 0;
+
+    const { rows } = await db.query(
+      `INSERT INTO books(title, author, category, description, image_url, pdf_url, pages, language, is_new, user_id, status)
+       VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending') RETURNING *`,
+      [title, author, category, description, image_url, pdf_url, pagesInt, language || 'العربية', true, decoded.id]
+    );
+    res.status(201).json(rows[0]);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // إضافة كتاب (للأدمن فقط)
 app.post('/api/books', async (req, res) => {
   const authHeader = req.headers['authorization'];
