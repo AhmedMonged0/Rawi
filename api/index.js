@@ -441,12 +441,21 @@ app.delete('/api/admin/users/:id', async (req, res) => {
     if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
 
     const userIdToDelete = req.params.id;
-    // TODO: Implement delete logic if needed
+
+    // Delete related data first (Manual Cascade)
+    await db.query('DELETE FROM favorites WHERE user_id = $1', [userIdToDelete]);
+    await db.query('DELETE FROM follows WHERE follower_id = $1 OR followed_id = $1', [userIdToDelete]);
+    await db.query('DELETE FROM connections WHERE sender_id = $1 OR receiver_id = $1', [userIdToDelete]);
+    await db.query('DELETE FROM messages WHERE sender_id = $1 OR receiver_id = $1', [userIdToDelete]);
+    await db.query('DELETE FROM books WHERE user_id = $1', [userIdToDelete]);
+
+    // Finally delete the user
     await db.query('DELETE FROM users WHERE id = $1', [userIdToDelete]);
-    res.json({ message: 'تم حذف المستخدم' });
+    res.json({ message: 'تم حذف المستخدم وجميع بياناته' });
 
   } catch (error) {
-    res.status(500).send('Error deleting user: ' + error.message);
+    console.error('Error deleting user:', error);
+    res.status(500).json({ message: 'فشل حذف المستخدم: ' + error.message });
   }
 });
 
