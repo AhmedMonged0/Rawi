@@ -658,102 +658,6 @@ app.put('/api/connections/:id/respond', async (req, res) => {
     const { status } = req.body; // 'accepted' or 'rejected'
 
     if (!['accepted', 'rejected'].includes(status)) return res.status(400).json({ message: 'حالة غير صالحة' });
-
-    await db.query(
-      "UPDATE connections SET status = $1 WHERE id = $2 AND receiver_id = $3",
-      [status, req.params.id, decoded.id]
-    );
-    res.json({ message: `تم ${status === 'accepted' ? 'قبول' : 'رفض'} الطلب` });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// Get Connections
-app.get('/api/connections', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    // Friends (accepted)
-    const { rows: friends } = await db.query(`
-      SELECT u.id, u.username, u.avatar_url 
-      FROM users u
-      JOIN connections c ON (u.id = c.sender_id OR u.id = c.receiver_id)
-      WHERE (c.sender_id = $1 OR c.receiver_id = $1) AND c.status = 'accepted' AND u.id != $1
-    `, [decoded.id]);
-
-    // Pending Requests (received)
-    const { rows: pending } = await db.query(`
-      SELECT c.id, u.id as user_id, u.username, u.avatar_url, c.created_at
-      FROM connections c
-      JOIN users u ON c.sender_id = u.id
-      WHERE c.receiver_id = $1 AND c.status = 'pending'
-      ORDER BY c.created_at DESC
-    `, [decoded.id]);
-
-    res.json({ friends, pending });
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
-
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      const { receiverId, content } = req.body;
-
-      // Check if friends
-      const { rows: conn } = await db.query(`
-      SELECT * FROM connections 
-      WHERE ((sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)) AND status = 'accepted'
-    `, [decoded.id, receiverId]);
-
-      if (conn.length === 0) return res.status(403).json({ message: 'يجب أن تكونوا أصدقاء للمراسلة' });
-
-      const { rows } = await db.query(
-        "INSERT INTO messages (sender_id, receiver_id, content) VALUES ($1, $2, $3) RETURNING *",
-        [decoded.id, receiverId, content]
-      );
-      res.json(rows[0]);
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-// Get Messages
-app.get('/api/messages/:userId', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const otherUserId = req.params.userId;
-
-    const { rows } = await db.query(`
-      SELECT * FROM messages 
-      WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)
-      ORDER BY created_at ASC
-    `, [decoded.id, otherUserId]);
-
-    res.json(rows);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// Delete Conversation
-app.delete('/api/messages/conversation/:friendId', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const friendId = req.params.friendId;
-
     await db.query(
       "DELETE FROM messages WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)",
       [decoded.id, friendId]
@@ -898,7 +802,7 @@ app.get('/api/users/:id/followers', async (req, res) => {
       FROM users u
       JOIN follows f ON u.id = f.follower_id
       WHERE f.followed_id = $1
-    `, [req.params.id]);
+      `, [req.params.id]);
     res.json(rows);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -913,7 +817,7 @@ app.get('/api/users/:id/following', async (req, res) => {
       FROM users u
       JOIN follows f ON u.id = f.followed_id
       WHERE f.follower_id = $1
-    `, [req.params.id]);
+      `, [req.params.id]);
     res.json(rows);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -948,7 +852,7 @@ app.get('/api/connections/requests', async (req, res) => {
       JOIN users u ON c.sender_id = u.id
       WHERE c.receiver_id = $1 AND c.status = 'pending'
       ORDER BY c.created_at DESC
-    `, [decoded.id]);
+      `, [decoded.id]);
 
     res.json(rows);
   } catch (error) {
