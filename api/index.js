@@ -1,59 +1,57 @@
+import 'dotenv/config';
 import express from 'express';
+import fetch from 'node-fetch';
 import cors from 'cors';
-import pg from 'pg';
-const { Pool } = pg;
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import fetch from 'node-fetch';
-import path from 'path';
-import url from 'url';
-import dotenv from 'dotenv';
-dotenv.config();
-
-const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
+import db from './db.js';
 
 const app = express();
-import db from './db.js'; // Assuming db.js also needs to be ESM or handled correctly. If db.js is CJS, we might need to change how we import it or convert it too.
-// Wait, if the project is ESM, db.js must also be ESM or we use createRequire.
-// Let's assume db.js needs conversion or is already compatible.
-// If db.js exports using module.exports, we need to change it.
-// I should check db.js content first. But I will write api/index.js first assuming I can fix db.js next.
+const JWT_SECRET = process.env.JWT_SECRET || 'rawi-secret-key';
 
-app.use(cors());
-app.use(express.json());
-app.use(express.static(path.join(__dirname, '../public')));
+// إعدادات CORS للسماح للواجهة بالاتصال
+app.use(cors({
+  origin: '*', // يسمح للطلبات من أي مكان (جيد للتجربة)
+  credentials: true
+}));
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+// زيادة حجم الطلب المسموح به لرفع الصور
+app.use(express.json({ limit: '10mb' }));
 
-// 1. فحص عمل السيرفر
-app.get('/', (req, res) => {
-  res.send('Rawi API is running...');
+// --- الروابط (Endpoints) ---
+
+// 1. فحص السيرفر
+app.get('/api', (req, res) => {
+  res.send('Rawi Server is Running on Vercel! 🚀');
 });
 
-// 2. تهيئة قاعدة البيانات
-app.post('/api/init-db', async (req, res) => {
+// 2. 🛠️ بناء قاعدة البيانات (شغله مرة واحدة بعد الرفع)
+app.get('/api/init-db', async (req, res) => {
   try {
-    const schemaErrors = [];
-
     // جدول المستخدمين
     await db.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
-        username VARCHAR(50) UNIQUE NOT NULL,
-        email VARCHAR(100) UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
+        username VARCHAR(50) NOT NULL,
+        email VARCHAR(100) NOT NULL UNIQUE,
+        password_hash VARCHAR(255) NOT NULL,
         role VARCHAR(20) DEFAULT 'user',
-        avatar_url TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         ip_address VARCHAR(45),
-        country VARCHAR(100)
+        country VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
-    // تحديث جدول المستخدمين (للحالات القديمة)
-    try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45)`); } catch (e) { schemaErrors.push('users.ip_address: ' + e.message); }
-    try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS country VARCHAR(100)`); } catch (e) { schemaErrors.push('users.country: ' + e.message); }
-    try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`); } catch (e) { schemaErrors.push('users.avatar_url: ' + e.message); }
+    // التأكد من وجود الأعمدة (للحالات القديمة)
+    const schemaErrors = [];
+    try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user'`); } catch (e) { schemaErrors.push('role: ' + e.message); }
+    try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45)`); } catch (e) { schemaErrors.push('ip_address: ' + e.message); }
+    try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS country VARCHAR(50)`); } catch (e) { schemaErrors.push('country: ' + e.message); }
+    try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`); } catch (e) { schemaErrors.push('avatar_url: ' + e.message); }
+    try { await db.query(`ALTER TABLE users ALTER COLUMN avatar_url TYPE TEXT`); } catch (e) { schemaErrors.push('avatar_url type: ' + e.message); }
+
+    // تحديث عمود الصورة ليكون TEXT بدلاً من VARCHAR لدعم Base64
+    try { await db.query(`ALTER TABLE books ALTER COLUMN image_url TYPE TEXT`); } catch (e) { schemaErrors.push('image_url type: ' + e.message); }
 
     // جدول الكتب
     await db.query(`
@@ -307,7 +305,7 @@ app.delete('/api/books/:id', async (req, res) => {
 // DEBUG: List all users
 app.get('/api/debug/users', async (req, res) => {
   try {
-    const { rows } = await db.query('SELECT id, username, email, avatar_url FROM users');
+    const { rows } = await db.query('SELECT id, username, email FROM users');
     res.json(rows);
   } catch (error) {
     res.status(500).json({ message: error.message });
