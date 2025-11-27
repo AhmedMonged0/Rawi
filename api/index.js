@@ -682,24 +682,135 @@ app.put('/api/connections/:id/respond', async (req, res) => {
     const { status } = req.body; // 'accepted' or 'rejected'
 
     if (!['accepted', 'rejected'].includes(status)) return res.status(400).json({ message: 'حالة غير صالحة' });
-    if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
 
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      const messageId = req.params.id;
-      const { content } = req.body;
+    await db.query(
+      "UPDATE connections SET status = $1 WHERE id = $2 AND receiver_id = $3",
+      [status, req.params.id, decoded.id]
+    );
+    res.json({ message: `تم ${status === 'accepted' ? 'قبول' : 'رفض'} الطلب` });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
-      const { rowCount } = await db.query(
-        "UPDATE messages SET content = $1, is_edited = TRUE WHERE id = $2 AND sender_id = $3",
-        [content, messageId, decoded.id]
-      );
+// 22. Messages System
 
-      if (rowCount === 0) return res.status(403).json({ message: 'غير مسموح بتعديل هذه الرسالة' });
-      res.json({ message: 'تم تعديل الرسالة' });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  });
+// Get Messages with a specific user
+app.get('/api/messages/:userId', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const otherUserId = req.params.userId;
+
+    const { rows } = await db.query(`
+      SELECT * FROM messages
+      WHERE (sender_id = $1 AND receiver_id = $2)
+      OR (sender_id = $2 AND receiver_id = $1)
+      ORDER BY created_at ASC
+    `, [decoded.id, otherUserId]);
+
+    // Mark as read
+    await db.query(`
+      UPDATE messages
+      SET is_read = TRUE
+      WHERE sender_id = $1 AND receiver_id = $2 AND is_read = FALSE
+    `, [otherUserId, decoded.id]);
+
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Send Message
+app.post('/api/messages', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const { receiverId, content } = req.body;
+
+    const { rows } = await db.query(
+      "INSERT INTO messages (sender_id, receiver_id, content) VALUES ($1, $2, $3) RETURNING *",
+      [decoded.id, receiverId, content]
+    );
+    res.status(201).json(rows[0]);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Delete Conversation
+app.delete('/api/messages/conversation/:friendId', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const friendId = req.params.friendId;
+
+    await db.query(`
+      DELETE FROM messages
+      WHERE (sender_id = $1 AND receiver_id = $2)
+      OR (sender_id = $2 AND receiver_id = $1)
+    `, [decoded.id, friendId]);
+
+    res.json({ message: 'تم حذف المحادثة' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Delete Message
+app.delete('/api/messages/:id', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const messageId = req.params.id;
+
+    const { rowCount } = await db.query(
+      "DELETE FROM messages WHERE id = $1 AND sender_id = $2",
+      [messageId, decoded.id]
+    );
+
+    if (rowCount === 0) return res.status(403).json({ message: 'غير مسموح بحذف هذه الرسالة' });
+    res.json({ message: 'تم حذف الرسالة' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Edit Message
+app.put('/api/messages/:id', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const messageId = req.params.id;
+    const { content } = req.body;
+
+    const { rowCount } = await db.query(
+      "UPDATE messages SET content = $1, is_edited = TRUE WHERE id = $2 AND sender_id = $3",
+      [content, messageId, decoded.id]
+    );
+
+    if (rowCount === 0) return res.status(403).json({ message: 'غير مسموح بتعديل هذه الرسالة' });
+    res.json({ message: 'تم تعديل الرسالة' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
 // 17. Admin Book Approvals
 app.get('/api/admin/books/pending', async (req, res) => {
