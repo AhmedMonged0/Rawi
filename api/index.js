@@ -535,6 +535,363 @@ app.post('/api/chat', async (req, res) => {
   // Check for both spellings just in case
   const apiKey = process.env.GEMENI_API_KEY || process.env.GEMINI_API_KEY;
 
+  if (!apiKey) {
+    console.error('API Key missing on server');
+    return res.status(500).json({ error: 'API key not configured on server (Check GEMENI_API_KEY)' });
+  }
+
+  const models = [
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
+    'gemini-pro',
+    'gemini-flash-latest'
+  ];
+
+  let lastError = null;
+
+  for (const model of models) {
+    try {
+      console.log(`Attempting model: ${model} `);
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: prompt }]
+          }]
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`API Error for ${model}: ${response.status} - ${errorText}`);
+
+        if (response.status === 404) {
+          lastError = `Model ${model} not found`;
+          continue;
+        }
+        if (response.status === 429) {
+          return res.status(429).json({ error: "تم تجاوز الحد المسموح من الطلبات. يرجى الانتظار قليلاً والمحاولة مرة أخرى." });
+        }
+
+        lastError = `API Error: ${response.status} - ${errorText}`;
+        continue;
+      }
+
+      const data = await response.json();
+      let text = null;
+      if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+        text = data.candidates[0].content.parts[0].text;
+      } else if (data.candidates?.[0]?.text) {
+        text = data.candidates[0].text;
+      } else if (data.text) {
+        text = data.text;
+      }
+
+      if (text) {
+        return res.json({ text });
+      } else {
+        lastError = 'No text found in response';
+      }
+
+    } catch (error) {
+      console.error(`Error with model ${model}:`, error);
+      lastError = error.message;
+      continue;
+    }
+  }
+
+  if (lastError) {
+    return res.status(500).json({ error: lastError });
+  }
+});
+
+// 21. Get Friends List (Connections)
+app.get('/api/connections', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    const { rows } = await db.query(`
+      SELECT u.id, u.username, u.avatar_url, c.id as connection_id
+      FROM users u
+      JOIN connections c ON (u.id = c.sender_id OR u.id = c.receiver_id)
+      WHERE (c.sender_id = $1 OR c.receiver_id = $1)
+      AND c.status = 'accepted'
+      AND u.id != $1
+    `, [decoded.id]);
+
+    res.json({ friends: rows });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Check Connection Status
+app.get('/api/connections/status/:id', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const targetUserId = req.params.id;
+    const currentUserId = decoded.id;
+
+    const { rows } = await db.query(`
+      SELECT * FROM connections
+      WHERE (sender_id = $1 AND receiver_id = $2)
+      OR (sender_id = $2 AND receiver_id = $1)
+    `, [currentUserId, targetUserId]);
+
+    if (rows.length === 0) {
+      return res.json({ status: 'none', isSender: false });
+    }
+
+    const connection = rows[0];
+    const isSender = connection.sender_id == currentUserId;
+
+    res.json({
+      status: connection.status,
+      isSender,
+      requestId: connection.id
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// إرسال طلب صداقة
+app.post('/api/connections/request', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const { receiverId } = req.body;
+
+    if (decoded.id == receiverId) return res.status(400).json({ message: 'لا يمكنك إرسال طلب لنفسك' });
+
+    // Check existing connection
+    const { rows } = await db.query(`
+      SELECT * FROM connections
+      WHERE (sender_id = $1 AND receiver_id = $2)
+      OR (sender_id = $2 AND receiver_id = $1)
+    `, [decoded.id, receiverId]);
+
+    if (rows.length > 0) {
+      const conn = rows[0];
+      if (conn.status === 'pending') {
+        return res.status(400).json({ message: 'يوجد طلب صداقة معلق بالفعل' });
+      }
+      if (conn.status === 'accepted') {
+        return res.status(400).json({ message: 'أنتم أصدقاء بالفعل' });
+      }
+      // If rejected, we allow re-sending (update status to pending)
+      if (conn.status === 'rejected') {
+        await db.query(
+          "UPDATE connections SET status = 'pending', sender_id = $1, receiver_id = $2, created_at = CURRENT_TIMESTAMP WHERE id = $3",
+          [decoded.id, receiverId, conn.id]
+        );
+        return res.json({ message: 'تم إرسال الطلب مجدداً' });
+      }
+    }
+
+    await db.query(
+      "INSERT INTO connections (sender_id, receiver_id, status) VALUES ($1, $2, 'pending')",
+      [decoded.id, receiverId]
+    );
+    res.json({ message: 'تم إرسال الطلب' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// البحث عن مستخدمين
+app.get('/api/users/search', async (req, res) => {
+  const { q } = req.query;
+  if (!q) return res.json([]);
+
+  try {
+    const { rows } = await db.query(
+      "SELECT id, username, avatar_url FROM users WHERE username ILIKE $1 LIMIT 20",
+      [`%${q}%`]
+    );
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Respond to Request
+app.put('/api/connections/:id/respond', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const { status } = req.body; // 'accepted' or 'rejected'
+
+    if (!['accepted', 'rejected'].includes(status)) return res.status(400).json({ message: 'حالة غير صالحة' });
+
+    await db.query(
+      "UPDATE connections SET status = $1 WHERE id = $2 AND receiver_id = $3",
+      [status, req.params.id, decoded.id]
+    );
+    res.json({ message: `تم ${status === 'accepted' ? 'قبول' : 'رفض'} الطلب` });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// 22. Messages System
+
+// Get Messages with a specific user
+app.get('/api/messages/:userId', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const otherUserId = req.params.userId;
+
+    const { rows } = await db.query(`
+      SELECT * FROM messages
+      WHERE (sender_id = $1 AND receiver_id = $2)
+      OR (sender_id = $2 AND receiver_id = $1)
+      ORDER BY created_at ASC
+    `, [decoded.id, otherUserId]);
+
+    // Mark as read
+    await db.query(`
+      UPDATE messages
+      SET is_read = TRUE
+      WHERE sender_id = $1 AND receiver_id = $2 AND is_read = FALSE
+    `, [otherUserId, decoded.id]);
+
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Send Message
+app.post('/api/messages', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const { receiverId, content } = req.body;
+
+    const { rows } = await db.query(
+      "INSERT INTO messages (sender_id, receiver_id, content) VALUES ($1, $2, $3) RETURNING *",
+      [decoded.id, receiverId, content]
+    );
+    res.status(201).json(rows[0]);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Delete Conversation
+app.delete('/api/messages/conversation/:friendId', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const friendId = req.params.friendId;
+
+    await db.query(`
+      DELETE FROM messages
+      WHERE (sender_id = $1 AND receiver_id = $2)
+      OR (sender_id = $2 AND receiver_id = $1)
+    `, [decoded.id, friendId]);
+
+    res.json({ message: 'تم حذف المحادثة' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Delete Message
+app.delete('/api/messages/:id', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const messageId = req.params.id;
+
+    const { rowCount } = await db.query(
+      "DELETE FROM messages WHERE id = $1 AND sender_id = $2",
+      [messageId, decoded.id]
+    );
+
+    if (rowCount === 0) return res.status(403).json({ message: 'غير مسموح بحذف هذه الرسالة' });
+    res.json({ message: 'تم حذف الرسالة' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Edit Message
+app.put('/api/messages/:id', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const messageId = req.params.id;
+    const { content } = req.body;
+
+    const { rowCount } = await db.query(
+      "UPDATE messages SET content = $1, is_edited = TRUE WHERE id = $2 AND sender_id = $3",
+      [content, messageId, decoded.id]
+    );
+
+    if (rowCount === 0) return res.status(403).json({ message: 'غير مسموح بتعديل هذه الرسالة' });
+    res.json({ message: 'تم تعديل الرسالة' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// 17. Admin Book Approvals
+app.get('/api/admin/books/pending', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح' });
+
+    const { rows } = await db.query("SELECT b.*, u.username as author_name FROM books b LEFT JOIN users u ON b.user_id = u.id WHERE b.status = 'pending' ORDER BY b.created_at DESC");
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+app.put('/api/admin/books/:id/status', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
