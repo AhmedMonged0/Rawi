@@ -402,6 +402,7 @@ export default function Home() {
     }, [isRequestsOpen, user]);
 
     const handleRespondRequest = async (id, status) => {
+        console.log(`Responding to request ${id} with status ${status}`);
         try {
             const token = localStorage.getItem('rawi_token');
             const res = await fetch(`/api/connections/${id}/respond`, {
@@ -413,14 +414,26 @@ export default function Home() {
                 body: JSON.stringify({ status })
             });
 
+            console.log("Response status:", res.status);
+
             if (res.ok) {
                 // Update local list
-                setPendingRequestsList(prev => prev.filter(req => req.id !== id));
+                setPendingRequestsList(prev => {
+                    const newList = prev.filter(req => req.id !== id);
+                    console.log("Updated pending list:", newList);
+                    return newList;
+                });
                 // Update count immediately
                 setNotifications(prev => ({ ...prev, requests: Math.max(0, prev.requests - 1) }));
+                addToast(status === 'accepted' ? "تم قبول طلب الصداقة" : "تم رفض طلب الصداقة");
+            } else {
+                const data = await res.json();
+                console.error("Failed to respond:", data);
+                addToast(data.message || "حدث خطأ");
             }
         } catch (error) {
             console.error("Error responding to request:", error);
+            addToast("حدث خطأ في الاتصال");
         }
     };
     const [selectedBook, setSelectedBook] = useState(null);
@@ -429,6 +442,9 @@ export default function Home() {
     const [books, setBooks] = useState([]);
     const [isLoadingBooks, setIsLoadingBooks] = useState(true);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+    const [searchType, setSearchType] = useState('books'); // 'books' or 'users'
+    const [userResults, setUserResults] = useState([]);
+    const [isSearchingUsers, setIsSearchingUsers] = useState(false);
     const aboutSectionRef = useRef(null);
     const userMenuRef = useRef(null);
     const navigate = useNavigate();
@@ -496,6 +512,30 @@ export default function Home() {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, [isUserMenuOpen]);
+
+    // Search Users Effect
+    useEffect(() => {
+        if (searchType === 'users' && searchQuery.trim()) {
+            setIsSearchingUsers(true);
+            const delayDebounceFn = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/api/users/search?q=${encodeURIComponent(searchQuery)}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        setUserResults(data);
+                    }
+                } catch (error) {
+                    console.error("Search error:", error);
+                } finally {
+                    setIsSearchingUsers(false);
+                }
+            }, 500);
+
+            return () => clearTimeout(delayDebounceFn);
+        } else {
+            setUserResults([]);
+        }
+    }, [searchQuery, searchType]);
 
     const addToast = (message) => { const id = Date.now(); setToasts(prev => [...prev, { id, message }]); setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000); };
     const addToCart = (book) => { if (!cart.find(item => item.id === book.id)) { setCart([...cart, book]); addToast(`تمت إضافة "${book.title}" للسلة`); } else { addToast(`"${book.title}" موجود بالفعل`); } };
@@ -601,7 +641,17 @@ export default function Home() {
             {/* Navbar */}
             <nav className="fixed top-0 w-full z-50 backdrop-blur-md bg-[#0a0a0a]/80 border-b border-white/10 px-6 py-4 flex justify-between items-center">
                 <div onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}><RawiLogo /></div>
-                <div className="flex-1 max-w-lg mx-4 md:mx-8"><div className="relative group"><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="ابحث عن قصة..." className="w-full bg-white/5 border border-white/10 rounded-full py-2 px-10 text-white focus:outline-none focus:border-purple-500/50 focus:bg-black/50 transition-all" /><Search className="absolute right-3 top-2.5 text-gray-400 group-focus-within:text-purple-400 transition-colors" size={18} />{searchQuery && <button onClick={() => setSearchQuery("")} className="absolute left-3 top-2.5 text-gray-500 hover:text-white"><X size={16} /></button>}</div></div>
+                <div className="flex-1 max-w-lg mx-4 md:mx-8 flex flex-col items-center">
+                    <div className="flex gap-2 mb-1">
+                        <button onClick={() => setSearchType('books')} className={`text-[10px] font-bold px-3 py-0.5 rounded-full transition-all ${searchType === 'books' ? 'bg-purple-500 text-white' : 'text-gray-400 hover:text-white bg-white/5'}`}>كتب</button>
+                        <button onClick={() => setSearchType('users')} className={`text-[10px] font-bold px-3 py-0.5 rounded-full transition-all ${searchType === 'users' ? 'bg-purple-500 text-white' : 'text-gray-400 hover:text-white bg-white/5'}`}>أشخاص</button>
+                    </div>
+                    <div className="relative group w-full">
+                        <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={searchType === 'books' ? "ابحث عن قصة..." : "ابحث عن أشخاص..."} className="w-full bg-white/5 border border-white/10 rounded-full py-2 px-10 text-white focus:outline-none focus:border-purple-500/50 focus:bg-black/50 transition-all" />
+                        <Search className="absolute right-3 top-2.5 text-gray-400 group-focus-within:text-purple-400 transition-colors" size={18} />
+                        {searchQuery && <button onClick={() => setSearchQuery("")} className="absolute left-3 top-2.5 text-gray-500 hover:text-white"><X size={16} /></button>}
+                    </div>
+                </div>
                 <div className="flex items-center gap-3 md:gap-5 text-white">
                     <button onClick={() => navigate('/search')} className="hover:text-purple-400 transition-colors hover:scale-110 active:scale-95 transform" title="بحث عن قراء"><Users size={20} /></button>
 
@@ -748,44 +798,77 @@ export default function Home() {
             {/* Books Grid */}
             < section id="books-section" className="py-20 px-6 relative z-10" >
                 <div className="max-w-7xl mx-auto">
-                    <div className="flex flex-col md:flex-row justify-between items-center mb-12 gap-6">
-                        <h2 className="text-3xl font-bold border-r-4 border-purple-500 pr-4 text-white">روائع القصص</h2>
-                        <div className="flex flex-wrap gap-2 justify-center">
-                            {["الكل", "تكنولوجيا", "علوم", "ذكاء اصطناعي", "فنون", "خيال علمي"].map(cat => (
-                                <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-300 ${activeCategory === cat ? "bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.3)]" : "bg-white/5 text-gray-400 hover:bg-white/10 border border-white/5 hover:text-white"}`}>{cat}</button>
-                            ))}
+                    {searchType === 'books' && (
+                        <div className="flex flex-col md:flex-row justify-between items-center mb-12 gap-6">
+                            <h2 className="text-3xl font-bold border-r-4 border-purple-500 pr-4 text-white">روائع القصص</h2>
+                            <div className="flex flex-wrap gap-2 justify-center">
+                                {["الكل", "تكنولوجيا", "علوم", "ذكاء اصطناعي", "فنون", "خيال علمي"].map(cat => (
+                                    <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-300 ${activeCategory === cat ? "bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.3)]" : "bg-white/5 text-gray-400 hover:bg-white/10 border border-white/5 hover:text-white"}`}>{cat}</button>
+                                ))}
+                            </div>
                         </div>
-                    </div>
+                    )}
 
-                    {isLoadingBooks ? (
-                        <div className="text-center py-20"><Loader2 className="animate-spin mx-auto text-purple-500 w-10 h-10" /></div>
-                    ) : filteredBooks.length === 0 ? (
-                        <div className="text-center py-20 text-gray-500">لا توجد حكايات مطابقة 🔍</div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                            <AnimatePresence mode="popLayout">{filteredBooks.map((book) => (
-                                <motion.div key={book.id} layout initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} whileHover={{ y: -10 }} className="group relative bg-white/5 rounded-3xl p-4 border border-white/5 hover:border-purple-500/30 transition-all duration-300">
-                                    <div className="relative aspect-[2/3] rounded-2xl overflow-hidden mb-4 shadow-2xl shadow-black/50 cursor-pointer" onClick={() => setSelectedBook(book)}>
-                                        <img src={book.image_url || book.image} alt={book.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                                        {book.is_new && <div className="absolute top-3 right-3 bg-blue-500/90 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1"><Zap size={12} /> جديد</div>}
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); toggleWishlist(book); }}
-                                            className="absolute top-3 left-3 bg-black/50 p-2 rounded-full text-white hover:bg-white hover:text-red-500 transition-all z-10"
-                                        >
-                                            <Heart size={16} className={wishlist.some(i => i.id === book.id) ? "fill-red-500 text-red-500" : ""} />
-                                        </button>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <div className="flex items-center justify-between text-xs text-gray-400"><span>{book.category}</span><div className="flex items-center gap-1 text-yellow-400"><Star size={12} className="fill-yellow-400" /><span>{book.rating}</span></div></div>
-                                        <h3 className="text-lg font-bold text-white line-clamp-1 cursor-pointer hover:text-purple-400 transition-colors" onClick={() => setSelectedBook(book)}>{book.title}</h3>
-                                        <p className="text-sm text-gray-400 line-clamp-1">{book.author}</p>
-                                        <div className="flex items-center justify-between pt-3 border-t border-white/5 mt-3">
-                                            <button onClick={() => window.open(book.pdf_url, '_blank')} className="w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:opacity-90 text-white rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2"><Download size={16} /> تحميل الكتاب</button>
-                                        </div>
-                                    </div>
-                                </motion.div>
-                            ))}</AnimatePresence>
+                    {searchType === 'users' ? (
+                        <div className="min-h-[300px]">
+                            {isSearchingUsers ? (
+                                <div className="text-center py-20"><Loader2 className="animate-spin mx-auto text-purple-500 w-10 h-10" /></div>
+                            ) : userResults.length > 0 ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {userResults.map(u => (
+                                        <motion.div key={u.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-[#151515] border border-white/10 rounded-2xl p-6 flex flex-col items-center gap-4 hover:border-purple-500/50 transition-all group relative overflow-hidden">
+                                            <div className="absolute inset-0 bg-gradient-to-b from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            <img src={u.avatar_url || 'https://via.placeholder.com/150'} alt={u.username} className="w-24 h-24 rounded-full object-cover border-2 border-white/10 group-hover:border-purple-500 transition-colors relative z-10" />
+                                            <div className="text-center relative z-10">
+                                                <h3 className="text-xl font-bold text-white">{u.username}</h3>
+                                                <p className="text-xs text-gray-400 mt-1">عضو في راوي</p>
+                                            </div>
+                                            <button onClick={() => navigate(`/profile/${u.id}`)} className="bg-white/5 hover:bg-purple-500 hover:text-white text-gray-300 px-6 py-2 rounded-full text-sm font-bold transition-all w-full relative z-10 flex items-center justify-center gap-2">
+                                                <User size={16} /> عرض الملف
+                                            </button>
+                                        </motion.div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-20 text-gray-500 flex flex-col items-center gap-4">
+                                    <Search size={48} className="opacity-20" />
+                                    <p>لا يوجد مستخدمين بهذا الاسم</p>
+                                </div>
+                            )}
                         </div>
+                    ) : (
+                        <>
+                            {isLoadingBooks ? (
+                                <div className="text-center py-20"><Loader2 className="animate-spin mx-auto text-purple-500 w-10 h-10" /></div>
+                            ) : filteredBooks.length === 0 ? (
+                                <div className="text-center py-20 text-gray-500">لا توجد حكايات مطابقة 🔍</div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                    <AnimatePresence mode="popLayout">{filteredBooks.map((book) => (
+                                        <motion.div key={book.id} layout initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} whileHover={{ y: -10 }} className="group relative bg-white/5 rounded-3xl p-4 border border-white/5 hover:border-purple-500/30 transition-all duration-300">
+                                            <div className="relative aspect-[2/3] rounded-2xl overflow-hidden mb-4 shadow-2xl shadow-black/50 cursor-pointer" onClick={() => setSelectedBook(book)}>
+                                                <img src={book.image_url || book.image} alt={book.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                {book.is_new && <div className="absolute top-3 right-3 bg-blue-500/90 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1"><Zap size={12} /> جديد</div>}
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); toggleWishlist(book); }}
+                                                    className="absolute top-3 left-3 bg-black/50 p-2 rounded-full text-white hover:bg-white hover:text-red-500 transition-all z-10"
+                                                >
+                                                    <Heart size={16} className={wishlist.some(i => i.id === book.id) ? "fill-red-500 text-red-500" : ""} />
+                                                </button>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <div className="flex items-center justify-between text-xs text-gray-400"><span>{book.category}</span><div className="flex items-center gap-1 text-yellow-400"><Star size={12} className="fill-yellow-400" /><span>{book.rating}</span></div></div>
+                                                <h3 className="text-lg font-bold text-white line-clamp-1 cursor-pointer hover:text-purple-400 transition-colors" onClick={() => setSelectedBook(book)}>{book.title}</h3>
+                                                <p className="text-sm text-gray-400 line-clamp-1">{book.author}</p>
+                                                <div className="flex items-center justify-between pt-3 border-t border-white/5 mt-3">
+                                                    <button onClick={() => window.open(book.pdf_url, '_blank')} className="w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:opacity-90 text-white rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2"><Download size={16} /> تحميل الكتاب</button>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    ))}</AnimatePresence>
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
             </section >
