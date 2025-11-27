@@ -609,6 +609,30 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
+// 21. Get Friends List (Connections)
+app.get('/api/connections', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    const { rows } = await db.query(`
+      SELECT u.id, u.username, u.avatar_url, c.id as connection_id
+      FROM users u
+      JOIN connections c ON (u.id = c.sender_id OR u.id = c.receiver_id)
+      WHERE (c.sender_id = $1 OR c.receiver_id = $1)
+      AND c.status = 'accepted'
+      AND u.id != $1
+    `, [decoded.id]);
+
+    res.json({ friends: rows });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // إرسال طلب صداقة
 app.post('/api/connections/request', async (req, res) => {
   const authHeader = req.headers['authorization'];
@@ -658,61 +682,24 @@ app.put('/api/connections/:id/respond', async (req, res) => {
     const { status } = req.body; // 'accepted' or 'rejected'
 
     if (!['accepted', 'rejected'].includes(status)) return res.status(400).json({ message: 'حالة غير صالحة' });
+    if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
 
-    await db.query(
-      "UPDATE connections SET status = $1 WHERE id = $2 AND receiver_id = $3",
-      [status, req.params.id, decoded.id]
-    );
-    res.json({ message: `تم ${status === 'accepted' ? 'قبول' : 'رفض'} الطلب` });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      const messageId = req.params.id;
+      const { content } = req.body;
 
-// Delete Message
-app.delete('/api/messages/:id', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+      const { rowCount } = await db.query(
+        "UPDATE messages SET content = $1, is_edited = TRUE WHERE id = $2 AND sender_id = $3",
+        [content, messageId, decoded.id]
+      );
 
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const messageId = req.params.id;
-
-    const { rowCount } = await db.query(
-      "DELETE FROM messages WHERE id = $1 AND sender_id = $2",
-      [messageId, decoded.id]
-    );
-
-    if (rowCount === 0) return res.status(403).json({ message: 'غير مسموح بحذف هذه الرسالة' });
-    res.json({ message: 'تم حذف الرسالة' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// Edit Message
-app.put('/api/messages/:id', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const messageId = req.params.id;
-    const { content } = req.body;
-
-    const { rowCount } = await db.query(
-      "UPDATE messages SET content = $1, is_edited = TRUE WHERE id = $2 AND sender_id = $3",
-      [content, messageId, decoded.id]
-    );
-
-    if (rowCount === 0) return res.status(403).json({ message: 'غير مسموح بتعديل هذه الرسالة' });
-    res.json({ message: 'تم تعديل الرسالة' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+      if (rowCount === 0) return res.status(403).json({ message: 'غير مسموح بتعديل هذه الرسالة' });
+      res.json({ message: 'تم تعديل الرسالة' });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  });
 
 // 17. Admin Book Approvals
 app.get('/api/admin/books/pending', async (req, res) => {
