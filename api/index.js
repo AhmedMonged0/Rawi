@@ -47,6 +47,8 @@ app.get('/api/init-db', async (req, res) => {
     try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user'`); } catch (e) { schemaErrors.push('role: ' + e.message); }
     try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45)`); } catch (e) { schemaErrors.push('ip_address: ' + e.message); }
     try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS country VARCHAR(50)`); } catch (e) { schemaErrors.push('country: ' + e.message); }
+    try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`); } catch (e) { schemaErrors.push('avatar_url: ' + e.message); }
+    try { await db.query(`ALTER TABLE users ALTER COLUMN avatar_url TYPE TEXT`); } catch (e) { schemaErrors.push('avatar_url type: ' + e.message); }
 
     // تحديث عمود الصورة ليكون TEXT بدلاً من VARCHAR لدعم Base64
     try { await db.query(`ALTER TABLE books ALTER COLUMN image_url TYPE TEXT`); } catch (e) { schemaErrors.push('image_url type: ' + e.message); }
