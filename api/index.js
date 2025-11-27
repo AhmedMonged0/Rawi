@@ -424,54 +424,25 @@ app.get('/api/admin/users', async (req, res) => {
     const { rows } = await db.query('SELECT id, username, email, role, created_at, ip_address, country FROM users ORDER BY created_at DESC');
     res.json(rows);
 
-  } catch (error) {
-    res.status(403).json({ message: 'توكن غير صالح' });
-  }
-});
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
 
-// 8. حذف مستخدم (للأدمن فقط)
-app.delete('/api/admin/users/:id', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      const { bookId } = req.body;
 
-  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+      await db.query(
+        'INSERT INTO favorites (user_id, book_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [decoded.id, bookId]
+      );
+      console.log(`User ${decoded.id} added book ${bookId} to favorites.`);
 
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
-
-    const userIdToDelete = req.params.id;
-    // TODO: Implement delete logic if needed
-    await db.query('DELETE FROM users WHERE id = $1', [userIdToDelete]);
-    res.json({ message: 'تم حذف المستخدم' });
-
-  } catch (error) {
-    res.status(500).send('Error deleting user: ' + error.message);
-  }
-});
-
-// 9. المفضلة
-// إضافة للمفضلة
-app.post('/api/favorites', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const { bookId } = req.body;
-
-    await db.query(
-      'INSERT INTO favorites (user_id, book_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-      [decoded.id, bookId]
-    );
-    console.log(`User ${decoded.id} added book ${bookId} to favorites.`);
-
-    res.json({ message: 'تمت الإضافة للمفضلة' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+      res.json({ message: 'تمت الإضافة للمفضلة' });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  });
 
 // حذف من المفضلة
 app.delete('/api/favorites/:bookId', async (req, res) => {
