@@ -658,11 +658,12 @@ app.put('/api/connections/:id/respond', async (req, res) => {
     const { status } = req.body; // 'accepted' or 'rejected'
 
     if (!['accepted', 'rejected'].includes(status)) return res.status(400).json({ message: 'حالة غير صالحة' });
+
     await db.query(
-      "DELETE FROM messages WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)",
-      [decoded.id, friendId]
+      "UPDATE connections SET status = $1 WHERE id = $2 AND receiver_id = $3",
+      [status, req.params.id, decoded.id]
     );
-    res.json({ message: 'تم حذف المحادثة' });
+    res.json({ message: `تم ${status === 'accepted' ? 'قبول' : 'رفض'} الطلب` });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
