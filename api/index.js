@@ -628,48 +628,18 @@ app.get('/api/connections', async (req, res) => {
     `, [decoded.id]);
 
     res.json({ friends: rows });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+    if (!q) return res.json([]);
 
-// إرسال طلب صداقة
-app.post('/api/connections/request', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const { receiverId } = req.body;
-
-    if (decoded.id == receiverId) return res.status(400).json({ message: 'لا يمكنك إرسال طلب لنفسك' });
-
-    await db.query(
-      "INSERT INTO connections (sender_id, receiver_id, status) VALUES ($1, $2, 'pending') ON CONFLICT DO NOTHING",
-      [decoded.id, receiverId]
-    );
-    res.json({ message: 'تم إرسال الطلب' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// البحث عن مستخدمين
-app.get('/api/users/search', async (req, res) => {
-  const { q } = req.query;
-  if (!q) return res.json([]);
-
-  try {
-    const { rows } = await db.query(
-      "SELECT id, username, avatar_url FROM users WHERE username ILIKE $1 LIMIT 20",
-      [`%${q}%`]
-    );
-    res.json(rows);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+    try {
+      const { rows } = await db.query(
+        "SELECT id, username, avatar_url FROM users WHERE username ILIKE $1 LIMIT 20",
+        [`%${q}%`]
+      );
+      res.json(rows);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  });
 
 // Respond to Request
 app.put('/api/connections/:id/respond', async (req, res) => {

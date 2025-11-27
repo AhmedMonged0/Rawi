@@ -13,6 +13,7 @@ const UserProfile = () => {
     const [isCurrentUser, setIsCurrentUser] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [requestId, setRequestId] = useState(null);
 
     // Social State
     const [friendRequests, setFriendRequests] = useState([]);
@@ -128,6 +129,12 @@ const UserProfile = () => {
                 const data = await res.json();
                 setConnectionStatus(data.status);
                 setIsSender(data.isSender);
+                // If I am the receiver of a pending request, I need the request ID to respond
+                if (data.status === 'pending' && !data.isSender) {
+                    // We can store it in a state or just use it directly if we had a way.
+                    // Let's add a state for it.
+                    setRequestId(data.requestId);
+                }
             }
         } catch (error) {
             console.error('Error checking status:', error);
@@ -408,10 +415,29 @@ const UserProfile = () => {
                                     </button>
                                 )}
                                 {connectionStatus === 'pending' && (
-                                    <button disabled className="flex items-center justify-center gap-2 bg-gray-700 text-gray-300 px-6 py-3 rounded-xl cursor-not-allowed">
-                                        <Clock size={20} />
-                                        <span>{isSender ? 'تم الإرسال' : 'طلب معلق'}</span>
-                                    </button>
+                                    isSender ? (
+                                        <button disabled className="flex items-center justify-center gap-2 bg-gray-700 text-gray-300 px-6 py-3 rounded-xl cursor-not-allowed">
+                                            <Clock size={20} />
+                                            <span>تم الإرسال</span>
+                                        </button>
+                                    ) : (
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => handleRespondRequest(requestId, 'accepted')}
+                                                className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-xl transition-all font-bold"
+                                            >
+                                                <Check size={20} />
+                                                <span>قبول</span>
+                                            </button>
+                                            <button
+                                                onClick={() => handleRespondRequest(requestId, 'rejected')}
+                                                className="flex-1 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-xl transition-all font-bold"
+                                            >
+                                                <X size={20} />
+                                                <span>رفض</span>
+                                            </button>
+                                        </div>
+                                    )
                                 )}
                                 {connectionStatus === 'friends' && (
                                     <button
