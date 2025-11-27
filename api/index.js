@@ -696,67 +696,31 @@ app.get('/api/connections', async (req, res) => {
     `, [decoded.id]);
 
     res.json({ friends, pending });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
 
-// Check Connection Status
-app.get('/api/connections/status/:userId', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      const { receiverId, content } = req.body;
 
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const otherUserId = req.params.userId;
-
-    const { rows } = await db.query(`
-      SELECT * FROM connections 
-      WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)
-    `, [decoded.id, otherUserId]);
-
-    if (rows.length === 0) return res.json({ status: 'none' });
-
-    const conn = rows[0];
-    if (conn.status === 'accepted') return res.json({ status: 'friends' });
-    if (conn.status === 'pending') {
-      return res.json({ status: 'pending', isSender: conn.sender_id === decoded.id });
-    }
-    res.json({ status: 'none' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// 16. Chat
-// Send Message
-app.post('/api/messages', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const { receiverId, content } = req.body;
-
-    // Check if friends
-    const { rows: conn } = await db.query(`
+      // Check if friends
+      const { rows: conn } = await db.query(`
       SELECT * FROM connections 
       WHERE ((sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)) AND status = 'accepted'
     `, [decoded.id, receiverId]);
 
-    if (conn.length === 0) return res.status(403).json({ message: 'يجب أن تكونوا أصدقاء للمراسلة' });
+      if (conn.length === 0) return res.status(403).json({ message: 'يجب أن تكونوا أصدقاء للمراسلة' });
 
-    const { rows } = await db.query(
-      "INSERT INTO messages (sender_id, receiver_id, content) VALUES ($1, $2, $3) RETURNING *",
-      [decoded.id, receiverId, content]
-    );
-    res.json(rows[0]);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+      const { rows } = await db.query(
+        "INSERT INTO messages (sender_id, receiver_id, content) VALUES ($1, $2, $3) RETURNING *",
+        [decoded.id, receiverId, content]
+      );
+      res.json(rows[0]);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  });
 
 // Get Messages
 app.get('/api/messages/:userId', async (req, res) => {
@@ -988,6 +952,57 @@ app.get('/api/connections/requests', async (req, res) => {
 
     res.json(rows);
   } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// 20. Notification Summary
+app.get('/api/notifications/summary', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const userId = decoded.id;
+    const userRole = decoded.role; // Assuming role is in token, otherwise query user
+
+    // 1. Pending Friend Requests
+    const requestsRes = await db.query(
+      "SELECT COUNT(*) FROM connections WHERE receiver_id = $1 AND status = 'pending'",
+      [userId]
+    );
+    const requestsCount = parseInt(requestsRes.rows[0].count);
+
+    // 2. Unread Messages
+    const messagesRes = await db.query(
+      "SELECT COUNT(*) FROM messages WHERE receiver_id = $1 AND is_read = FALSE",
+      [userId]
+    );
+    const messagesCount = parseInt(messagesRes.rows[0].count);
+
+    // 3. Pending Books (Admin only)
+    let adminCount = 0;
+    // We need to check role from DB to be safe, or trust token. 
+    // Let's trust token if available, or query DB if needed.
+    // For now, let's query DB for role to be sure or just use token if we added it there.
+    // The login endpoint signs: { id: user.id, email: user.email, role: user.role }
+
+    if (userRole === 'admin') {
+      const booksRes = await db.query(
+        "SELECT COUNT(*) FROM books WHERE status = 'pending'"
+      );
+      adminCount = parseInt(booksRes.rows[0].count);
+    }
+
+    res.json({
+      requests: requestsCount,
+      messages: messagesCount,
+      admin: adminCount
+    });
+
+  } catch (error) {
+    console.error("Notification Summary Error:", error);
     res.status(500).json({ message: error.message });
   }
 });

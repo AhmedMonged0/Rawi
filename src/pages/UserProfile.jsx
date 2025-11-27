@@ -437,7 +437,10 @@ const UserProfile = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {friendRequests.map(req => (
                                 <div key={req.id} className="bg-[#151515] p-4 rounded-xl border border-white/10 flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
+                                    <div
+                                        className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+                                        onClick={() => navigate(`/profile/${req.user_id}`)}
+                                    >
                                         <img src={req.avatar_url || 'https://via.placeholder.com/40'} alt={req.username} className="w-10 h-10 rounded-full object-cover" />
                                         <div>
                                             <h4 className="font-bold">{req.username}</h4>
