@@ -538,7 +538,7 @@ export default function Home() {
                             <button onClick={() => navigate('/admin')} className="hover:text-red-400 transition-colors hover:scale-110 active:scale-95 transform" title="لوحة التحكم"><ShieldCheck size={20} /></button>
                         )}
 
-                        <button className="hover:text-purple-400 transition-colors hover:scale-110 active:scale-95 transform"><Globe size={20} /></button>
+
 
                         {user ? (
                             <div className="relative flex items-center gap-3" ref={userMenuRef}>
@@ -586,11 +586,7 @@ export default function Home() {
                             </button>
                         )}
 
-                        {/* Cart Button */}
-                        <button onClick={() => setIsCartOpen(true)} className="relative hover:text-purple-400 transition-colors hover:scale-110 active:scale-95 transform">
-                            <ShoppingBag size={20} />
-                            {cart.length > 0 && <span className="absolute -top-2 -right-2 bg-purple-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">{cart.length}</span>}
-                        </button>
+
 
                         <button className="md:hidden" onClick={() => setIsMenuOpen(!isMenuOpen)}><Menu size={24} /></button>
                     </div>
