@@ -696,8 +696,8 @@ export default function Home() {
                                                         </div>
                                                     </div>
                                                     <div className="flex gap-1">
-                                                        <button onClick={() => handleRespondRequest(req.id, 'accepted')} className="p-1.5 bg-green-500/20 text-green-400 rounded hover:bg-green-500/30"><Check size={14} /></button>
-                                                        <button onClick={() => handleRespondRequest(req.id, 'rejected')} className="p-1.5 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30"><X size={14} /></button>
+                                                        <button onClick={(e) => { e.stopPropagation(); handleRespondRequest(req.id, 'accepted'); }} className="p-1.5 bg-green-500/20 text-green-400 rounded hover:bg-green-500/30"><Check size={14} /></button>
+                                                        <button onClick={(e) => { e.stopPropagation(); handleRespondRequest(req.id, 'rejected'); }} className="p-1.5 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30"><X size={14} /></button>
                                                     </div>
                                                 </div>
                                             ))
