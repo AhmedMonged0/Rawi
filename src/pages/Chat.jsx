@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Trash2, Edit2, MoreVertical, X, Check, AlertTriangle, Copy } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useToast } from '../context/ToastContext';
+import { useModal } from '../context/ModalContext';
 
 const Avatar = ({ url, username, size = "w-10 h-10", textSize = "text-lg" }) => {
     const [error, setError] = useState(false);
@@ -29,6 +31,8 @@ const Avatar = ({ url, username, size = "w-10 h-10", textSize = "text-lg" }) => 
 const Chat = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { showToast } = useToast();
+    const { showConfirm } = useModal();
     const [friends, setFriends] = useState([]);
     const [selectedFriend, setSelectedFriend] = useState(null);
     const [messages, setMessages] = useState([]);
@@ -139,39 +143,42 @@ const Chat = () => {
         }
     };
 
-    const handleDeleteConversation = async () => {
-        if (!window.confirm('هل أنت متأكد من حذف المحادثة بالكامل؟ لا يمكن التراجع عن هذا الإجراء.')) return;
-
-        const token = localStorage.getItem('rawi_token');
-        try {
-            const res = await fetch(`/api/messages/conversation/${selectedFriend.id}`, {
-                method: 'DELETE',
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (res.ok) {
-                setMessages([]);
-                alert('تم حذف المحادثة');
+    const handleDeleteConversation = () => {
+        showConfirm('حذف المحادثة', 'هل أنت متأكد من حذف المحادثة بالكامل؟ لا يمكن التراجع عن هذا الإجراء.', async () => {
+            const token = localStorage.getItem('rawi_token');
+            try {
+                const res = await fetch(`/api/messages/conversation/${selectedFriend.id}`, {
+                    method: 'DELETE',
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    setMessages([]);
+                    showToast('تم حذف المحادثة', 'success');
+                }
+            } catch (error) {
+                console.error('Error deleting conversation:', error);
+                showToast('فشل حذف المحادثة', 'error');
             }
-        } catch (error) {
-            console.error('Error deleting conversation:', error);
-        }
+        });
     };
 
-    const handleDeleteMessage = async (messageId) => {
-        if (!window.confirm('حذف هذه الرسالة؟')) return;
-
-        const token = localStorage.getItem('rawi_token');
-        try {
-            const res = await fetch(`/api/messages/${messageId}`, {
-                method: 'DELETE',
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (res.ok) {
-                setMessages(messages.filter(m => m.id !== messageId));
+    const handleDeleteMessage = (messageId) => {
+        showConfirm('حذف رسالة', 'هل أنت متأكد من حذف هذه الرسالة؟', async () => {
+            const token = localStorage.getItem('rawi_token');
+            try {
+                const res = await fetch(`/api/messages/${messageId}`, {
+                    method: 'DELETE',
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    setMessages(messages.filter(m => m.id !== messageId));
+                    showToast('تم حذف الرسالة', 'success');
+                }
+            } catch (error) {
+                console.error('Error deleting message:', error);
+                showToast('فشل حذف الرسالة', 'error');
             }
-        } catch (error) {
-            console.error('Error deleting message:', error);
-        }
+        });
     };
 
     const startEditing = (msg) => {
@@ -198,13 +205,14 @@ const Chat = () => {
                 setMessages(prev => prev.map(m => m.id === editingMessage.id ? { ...m, content: editContent, is_edited: true } : m));
                 setEditingMessage(null);
                 setEditContent('');
+                showToast('تم تعديل الرسالة', 'success');
             } else {
                 const data = await res.json();
-                alert(data.message || 'فشل تعديل الرسالة');
+                showToast(data.message || 'فشل تعديل الرسالة', 'error');
             }
         } catch (error) {
             console.error('Error editing message:', error);
-            alert('حدث خطأ أثناء التعديل');
+            showToast('حدث خطأ أثناء التعديل', 'error');
         }
     };
 

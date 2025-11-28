@@ -3,8 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { Upload, FileText, Image as ImageIcon, X, Loader2 } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 
+import { useToast } from '../context/ToastContext';
+
 const BookSubmission = () => {
     const navigate = useNavigate();
+    const { showToast } = useToast();
     const [formData, setFormData] = useState({
         title: '',
         author: '',
@@ -52,7 +55,7 @@ const BookSubmission = () => {
         setIsLoading(true);
         const token = localStorage.getItem('rawi_token'); // Fixed token key
         if (!token) {
-            alert('يجب تسجيل الدخول');
+            showToast('يجب تسجيل الدخول', 'warning');
             setIsLoading(false);
             return;
         }
@@ -68,15 +71,15 @@ const BookSubmission = () => {
             });
 
             if (res.ok) {
-                alert('تم إرسال الكتاب للمراجعة بنجاح!');
+                showToast('تم إرسال الكتاب للمراجعة بنجاح!', 'success');
                 navigate('/');
             } else {
                 const data = await res.json();
-                alert(data.message || 'حدث خطأ');
+                showToast(data.message || 'حدث خطأ', 'error');
             }
         } catch (error) {
             console.error('Error submitting book:', error);
-            alert('حدث خطأ في الاتصال');
+            showToast('حدث خطأ في الاتصال', 'error');
         } finally {
             setIsLoading(false);
         }

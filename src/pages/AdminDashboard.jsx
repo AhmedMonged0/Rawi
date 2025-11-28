@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, X, Check, XCircle, Eye } from 'lucide-react';
 
+import { useToast } from '../context/ToastContext';
+import { useModal } from '../context/ModalContext';
+
 const AdminDashboard = () => {
+    const { showToast } = useToast();
+    const { showPrompt } = useModal();
     const [pendingBooks, setPendingBooks] = useState([]);
     const [selectedBook, setSelectedBook] = useState(null);
 
@@ -40,10 +45,11 @@ const AdminDashboard = () => {
             if (res.ok) {
                 setPendingBooks(pendingBooks.filter(b => b.id !== bookId));
                 setSelectedBook(null); // Close modal if open
-                alert(`تم ${status === 'approved' ? 'قبول' : 'رفض'} الكتاب`);
+                showToast(`تم ${status === 'approved' ? 'قبول' : 'رفض'} الكتاب`, 'success');
             }
         } catch (error) {
             console.error('Error updating status:', error);
+            showToast('حدث خطأ أثناء تحديث الحالة', 'error');
         }
     };
 
@@ -82,8 +88,9 @@ const AdminDashboard = () => {
                                         <Check size={18} /> قبول
                                     </button>
                                     <button onClick={() => {
-                                        const reason = prompt('سبب الرفض:');
-                                        if (reason) handleAction(book.id, 'rejected', reason);
+                                        showPrompt('رفض الكتاب', 'يرجى ذكر سبب الرفض:', (reason) => {
+                                            if (reason) handleAction(book.id, 'rejected', reason);
+                                        }, 'سبب الرفض...');
                                     }} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded transition-colors flex items-center justify-center gap-2">
                                         <XCircle size={18} /> رفض
                                     </button>
@@ -170,8 +177,9 @@ const AdminDashboard = () => {
                                     قبول الكتاب
                                 </button>
                                 <button onClick={() => {
-                                    const reason = prompt('سبب الرفض:');
-                                    if (reason) handleAction(selectedBook.id, 'rejected', reason);
+                                    showPrompt('رفض الكتاب', 'يرجى ذكر سبب الرفض:', (reason) => {
+                                        if (reason) handleAction(selectedBook.id, 'rejected', reason);
+                                    }, 'سبب الرفض...');
                                 }} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-bold transition-colors">
                                     رفض الكتاب
                                 </button>

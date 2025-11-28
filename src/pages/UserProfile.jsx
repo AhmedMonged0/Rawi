@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { User, Book, Calendar, Edit2, Check, X, MessageCircle, UserPlus, Clock, BookOpen, Heart, LogOut, Users, UserMinus, Upload } from 'lucide-react';
 
+import { useToast } from '../context/ToastContext';
+
 const UserProfile = () => {
     const { id } = useParams();
+    const { showToast } = useToast();
     const [user, setUser] = useState(null);
     const [userBooks, setUserBooks] = useState([]);
     const [connectionStatus, setConnectionStatus] = useState('none'); // none, pending, friends
@@ -162,11 +165,13 @@ const UserProfile = () => {
                 const updatedUser = await res.json();
                 setUser(prev => ({ ...prev, username: updatedUser.username }));
                 setIsEditing(false);
+                showToast('تم تحديث الملف الشخصي', 'success');
             } else {
-                alert('فشل تحديث الملف الشخصي');
+                showToast('فشل تحديث الملف الشخصي', 'error');
             }
         } catch (error) {
             console.error('Error updating profile:', error);
+            showToast('حدث خطأ أثناء التحديث', 'error');
         }
     };
 
@@ -189,6 +194,7 @@ const UserProfile = () => {
                     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                     body: JSON.stringify({ username: user.username, avatar_url: base64 })
                 });
+                showToast('تم تحديث الصورة الشخصية', 'success');
             } catch (err) { console.error(err); }
         };
         reader.readAsDataURL(file);
@@ -196,7 +202,7 @@ const UserProfile = () => {
 
     const sendRequest = async () => {
         const token = localStorage.getItem('rawi_token');
-        if (!token) return alert('يجب تسجيل الدخول أولاً');
+        if (!token) return showToast('يجب تسجيل الدخول أولاً', 'warning');
 
         try {
             const res = await fetch('/api/connections/request', {
@@ -210,18 +216,20 @@ const UserProfile = () => {
             if (res.ok) {
                 setConnectionStatus('pending');
                 setIsSender(true);
+                showToast('تم إرسال طلب الصداقة', 'success');
             } else {
                 const data = await res.json();
-                alert(data.message);
+                showToast(data.message, 'error');
             }
         } catch (error) {
             console.error('Error sending request:', error);
+            showToast('فشل إرسال الطلب', 'error');
         }
     };
 
     const handleFollowToggle = async () => {
         const token = localStorage.getItem('rawi_token');
-        if (!token) return alert('يجب تسجيل الدخول');
+        if (!token) return showToast('يجب تسجيل الدخول', 'warning');
 
         const url = isFollowing ? `/api/follow/${id}` : '/api/follow';
         const method = isFollowing ? 'DELETE' : 'POST';
@@ -239,6 +247,7 @@ const UserProfile = () => {
             if (res.ok) {
                 setIsFollowing(!isFollowing);
                 setFollowersCount(prev => isFollowing ? prev - 1 : prev + 1);
+                showToast(isFollowing ? 'تم إلغاء المتابعة' : 'تمت المتابعة', 'success');
             }
         } catch (e) { console.error(e); }
     };

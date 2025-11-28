@@ -8,21 +8,28 @@ import AdminDashboard from './pages/AdminDashboard';
 import UserSearch from './pages/UserSearch';
 import Chat from './pages/Chat';
 
+import { ToastProvider } from './context/ToastContext';
+import { ModalProvider } from './context/ModalContext';
+
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/profile/:id" element={<UserProfile />} />
-        <Route path="/submit" element={<BookSubmission />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/search" element={<UserSearch />} />
-        <Route path="/chat" element={<Chat />} />
-        <Route path="/rawi-admin-secret" element={<AdminLogin />} />
-        {/* Catch-all route for 404s */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Router>
+    <ToastProvider>
+      <ModalProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/profile/:id" element={<UserProfile />} />
+            <Route path="/submit" element={<BookSubmission />} />
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/search" element={<UserSearch />} />
+            <Route path="/chat" element={<Chat />} />
+            <Route path="/rawi-admin-secret" element={<AdminLogin />} />
+            {/* Catch-all route for 404s */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
+      </ModalProvider>
+    </ToastProvider>
   );
 }
 
