@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { BadgeCheck } from 'lucide-react';
 
 const UserSearch = () => {
     const [query, setQuery] = useState('');
@@ -46,7 +47,10 @@ const UserSearch = () => {
                                     <img src={user.avatar_url || 'https://via.placeholder.com/150'} alt={user.username} className="w-full h-full object-cover" />
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-lg">{user.username}</h3>
+                                    <h3 className="font-bold text-lg flex items-center gap-1">
+                                        {user.username}
+                                        {user.is_verified && <BadgeCheck size={16} className="text-blue-500" />}
+                                    </h3>
                                 </div>
                             </div>
                         </Link>

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
     ShoppingBag, Search, BookOpen, X, Star, ArrowRight, Heart, Menu,
     Globe, Sparkles, MessageSquare, Send, Bot, Loader2, Check,
-    CreditCard, Trash2, Mail, User, Phone, Code, Feather, Zap, LogIn, LogOut, ShieldCheck, Users, History, Download, PenTool
+    CreditCard, Trash2, Mail, User, Phone, Code, Feather, Zap, LogIn, LogOut, ShieldCheck, Users, History, Download, PenTool, BadgeCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -691,7 +691,10 @@ export default function Home() {
                                                     <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate(`/profile/${req.user_id}`)}>
                                                         <img src={req.avatar_url || 'https://via.placeholder.com/30'} alt={req.username} className="w-8 h-8 rounded-full object-cover" />
                                                         <div className="overflow-hidden">
-                                                            <p className="text-sm font-bold truncate">{req.username}</p>
+                                                            <p className="text-sm font-bold truncate flex items-center gap-1">
+                                                                {req.username}
+                                                                {req.is_verified && <BadgeCheck size={12} className="text-blue-500" />}
+                                                            </p>
                                                             <p className="text-[10px] text-gray-500">{new Date(req.created_at).toLocaleDateString('ar-EG')}</p>
                                                         </div>
                                                     </div>
@@ -737,7 +740,10 @@ export default function Home() {
                                 className="flex items-center gap-2 hover:text-purple-400 transition-colors cursor-pointer"
                             >
                                 <img src={user.avatar_url || 'https://via.placeholder.com/30'} alt={user.username} className="w-8 h-8 rounded-full object-cover border border-white/20" />
-                                <span className="text-sm font-bold hidden md:block">{user.username}</span>
+                                <span className="text-sm font-bold hidden md:block flex items-center gap-1">
+                                    {user.username}
+                                    {user.is_verified && <BadgeCheck size={14} className="text-blue-500" />}
+                                </span>
                             </div>
 
                             <AnimatePresence>

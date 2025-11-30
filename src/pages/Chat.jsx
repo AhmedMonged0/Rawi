@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Trash2, Edit2, MoreVertical, X, Check, AlertTriangle, Copy } from 'lucide-react';
+import { Trash2, Edit2, MoreVertical, X, Check, AlertTriangle, Copy, BadgeCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
 import { useModal } from '../context/ModalContext';
@@ -245,7 +245,10 @@ const Chat = () => {
                             className={`p-4 flex items-center gap-3 cursor-pointer hover:bg-gray-800 transition-colors ${selectedFriend?.id === friend.id ? 'bg-gray-800 border-r-4 border-green-500' : ''}`}
                         >
                             <Avatar url={friend.avatar_url} username={friend.username} />
-                            <span className="font-medium">{friend.username}</span>
+                            <span className="font-medium flex items-center gap-1">
+                                {friend.username}
+                                {friend.is_verified && <BadgeCheck size={14} className="text-blue-500" />}
+                            </span>
                         </div>
                     ))}
                     {friends.length === 0 && <p className="text-gray-500 text-center p-4">لا يوجد أصدقاء بعد</p>}
@@ -263,7 +266,10 @@ const Chat = () => {
                                 title="عرض الملف الشخصي"
                             >
                                 <Avatar url={selectedFriend.avatar_url} username={selectedFriend.username} size="w-10 h-10" textSize="text-lg" />
-                                <span className="font-bold text-lg">{selectedFriend.username}</span>
+                                <span className="font-bold text-lg flex items-center gap-1">
+                                    {selectedFriend.username}
+                                    {selectedFriend.is_verified && <BadgeCheck size={16} className="text-blue-500" />}
+                                </span>
                             </div>
 
                             <button

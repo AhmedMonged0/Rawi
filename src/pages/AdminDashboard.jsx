@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, X, Check, XCircle, Eye } from 'lucide-react';
+import { FileText, X, Check, XCircle, Eye, BadgeCheck } from 'lucide-react';
 
 import { useToast } from '../context/ToastContext';
 import { useModal } from '../context/ModalContext';
@@ -8,10 +8,12 @@ const AdminDashboard = () => {
     const { showToast } = useToast();
     const { showPrompt } = useModal();
     const [pendingBooks, setPendingBooks] = useState([]);
+    const [verificationRequests, setVerificationRequests] = useState([]);
     const [selectedBook, setSelectedBook] = useState(null);
 
     useEffect(() => {
         fetchPendingBooks();
+        fetchVerificationRequests();
     }, []);
 
     const fetchPendingBooks = async () => {
@@ -28,6 +30,43 @@ const AdminDashboard = () => {
             }
         } catch (error) {
             console.error('Error fetching pending books:', error);
+        }
+    };
+
+    const fetchVerificationRequests = async () => {
+        const token = localStorage.getItem('rawi_token');
+        if (!token) return;
+
+        try {
+            const res = await fetch('/api/admin/users/verification-requests', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.ok) {
+                setVerificationRequests(await res.json());
+            }
+        } catch (error) {
+            console.error('Error fetching verification requests:', error);
+        }
+    };
+
+    const handleVerificationAction = async (userId, status) => {
+        const token = localStorage.getItem('rawi_token');
+        try {
+            const res = await fetch(`/api/admin/users/${userId}/verify`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({ status })
+            });
+            if (res.ok) {
+                setVerificationRequests(prev => prev.filter(u => u.id !== userId));
+                showToast(`تم ${status === 'approved' ? 'توثيق' : 'رفض توثيق'} المستخدم`, 'success');
+            }
+        } catch (error) {
+            console.error('Error updating verification:', error);
+            showToast('حدث خطأ', 'error');
         }
     };
 
@@ -58,6 +97,31 @@ const AdminDashboard = () => {
             <h1 className="text-3xl font-bold text-green-400 mb-8 text-center">لوحة تحكم المشرف</h1>
 
             <div className="max-w-6xl mx-auto">
+                {/* Verification Requests Section */}
+                <h2 className="text-2xl font-bold mb-4 border-b border-gray-700 pb-2">طلبات توثيق الحسابات</h2>
+                {verificationRequests.length === 0 ? (
+                    <p className="text-gray-400 text-center py-8 mb-8">لا توجد طلبات توثيق معلقة</p>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+                        {verificationRequests.map(user => (
+                            <div key={user.id} className="bg-gray-900 border border-gray-700 rounded-lg p-4 flex items-center gap-4">
+                                <img src={user.avatar_url || 'https://via.placeholder.com/50'} alt={user.username} className="w-16 h-16 rounded-full object-cover" />
+                                <div className="flex-1">
+                                    <h3 className="font-bold text-white flex items-center gap-1">
+                                        {user.username}
+                                        <BadgeCheck size={16} className="text-blue-500" />
+                                    </h3>
+                                    <p className="text-xs text-gray-500">{user.email}</p>
+                                    <div className="flex gap-2 mt-2">
+                                        <button onClick={() => handleVerificationAction(user.id, 'approved')} className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs">قبول</button>
+                                        <button onClick={() => handleVerificationAction(user.id, 'rejected')} className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs">رفض</button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
                 <h2 className="text-2xl font-bold mb-4 border-b border-gray-700 pb-2">كتب بانتظار الموافقة</h2>
 
                 {pendingBooks.length === 0 ? (

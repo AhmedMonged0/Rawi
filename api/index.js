@@ -50,6 +50,10 @@ app.get('/api/init-db', async (req, res) => {
     try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`); } catch (e) { schemaErrors.push('avatar_url: ' + e.message); }
     try { await db.query(`ALTER TABLE users ALTER COLUMN avatar_url TYPE TEXT`); } catch (e) { schemaErrors.push('avatar_url type: ' + e.message); }
 
+    // إضافة أعمدة التوثيق
+    try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE`); } catch (e) { schemaErrors.push('is_verified: ' + e.message); }
+    try { await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_status VARCHAR(20) DEFAULT 'none'`); } catch (e) { schemaErrors.push('verification_status: ' + e.message); }
+
     // تحديث عمود الصورة ليكون TEXT بدلاً من VARCHAR لدعم Base64
     try { await db.query(`ALTER TABLE books ALTER COLUMN image_url TYPE TEXT`); } catch (e) { schemaErrors.push('image_url type: ' + e.message); }
 
@@ -81,26 +85,26 @@ app.get('/api/init-db', async (req, res) => {
 
     // جدول الصداقات
     await db.query(`
-      CREATE TABLE IF NOT EXISTS connections (
-        id SERIAL PRIMARY KEY,
-        sender_id INTEGER REFERENCES users(id),
-        receiver_id INTEGER REFERENCES users(id),
-        status VARCHAR(20) DEFAULT 'pending',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
+      CREATE TABLE IF NOT EXISTS connections(
+      id SERIAL PRIMARY KEY,
+      sender_id INTEGER REFERENCES users(id),
+      receiver_id INTEGER REFERENCES users(id),
+      status VARCHAR(20) DEFAULT 'pending',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
     `);
 
     // جدول الرسائل
     await db.query(`
-      CREATE TABLE IF NOT EXISTS messages (
-        id SERIAL PRIMARY KEY,
-        sender_id INTEGER REFERENCES users(id),
-        receiver_id INTEGER REFERENCES users(id),
-        content TEXT NOT NULL,
-        is_read BOOLEAN DEFAULT FALSE,
-        is_edited BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
+      CREATE TABLE IF NOT EXISTS messages(
+      id SERIAL PRIMARY KEY,
+      sender_id INTEGER REFERENCES users(id),
+      receiver_id INTEGER REFERENCES users(id),
+      content TEXT NOT NULL,
+      is_read BOOLEAN DEFAULT FALSE,
+      is_edited BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
     `);
 
     // تحديث جدول الرسائل (للحالات القديمة)
@@ -109,32 +113,32 @@ app.get('/api/init-db', async (req, res) => {
 
     // جدول المفضلة
     await db.query(`
-      CREATE TABLE IF NOT EXISTS favorites (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id),
-        book_id INTEGER REFERENCES books(id),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(user_id, book_id)
-      );
+      CREATE TABLE IF NOT EXISTS favorites(
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id),
+      book_id INTEGER REFERENCES books(id),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, book_id)
+    );
     `);
 
     // جدول المتابعة
     await db.query(`
-      CREATE TABLE IF NOT EXISTS follows (
-        id SERIAL PRIMARY KEY,
-        follower_id INTEGER REFERENCES users(id),
-        followed_id INTEGER REFERENCES users(id),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(follower_id, followed_id)
-      );
+      CREATE TABLE IF NOT EXISTS follows(
+      id SERIAL PRIMARY KEY,
+      follower_id INTEGER REFERENCES users(id),
+      followed_id INTEGER REFERENCES users(id),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(follower_id, followed_id)
+    );
     `);
 
     // إنشاء مستخدم أدمن افتراضي
     const hashedPassword = await bcrypt.hash('admin123', 10);
     await db.query(`
-      INSERT INTO users (username, email, password_hash, role)
-      VALUES ($1, $2, $3, 'admin')
-      ON CONFLICT (email) DO NOTHING;
+      INSERT INTO users(username, email, password_hash, role)
+    VALUES($1, $2, $3, 'admin')
+      ON CONFLICT(email) DO NOTHING;
     `, ['admin', 'admin@rawi.com', hashedPassword]);
 
     // إضافة كتب افتراضية إذا كان الجدول فارغاً
@@ -178,8 +182,8 @@ app.get('/api/init-db', async (req, res) => {
 
       for (const book of initialBooks) {
         await db.query(`
-          INSERT INTO books (title, author, category, description, image_url, pdf_url, pages, rating, is_new, status)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'approved')
+          INSERT INTO books(title, author, category, description, image_url, pdf_url, pages, rating, is_new, status)
+    VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, 'approved')
         `, [book.title, book.author, book.category, book.description, book.image_url, book.pdf_url, book.pages, book.rating, book.is_new]);
       }
     }
@@ -225,7 +229,7 @@ app.post('/api/books/submit', async (req, res) => {
 
     const { rows } = await db.query(
       `INSERT INTO books(title, author, category, description, image_url, pdf_url, pages, language, is_new, user_id, status)
-       VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending') RETURNING *`,
+    VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending') RETURNING * `,
       [title, author, category, description, image_url, pdf_url, pagesInt, language || 'العربية', true, decoded.id]
     );
     res.status(201).json(rows[0]);
@@ -312,63 +316,7 @@ app.get('/api/debug/users', async (req, res) => {
   }
 });
 
-// 13. User Profile
-app.get('/api/users/:id', async (req, res) => {
-  console.log(`Fetching user with ID: ${req.params.id}`);
-  try {
-    const { rows } = await db.query('SELECT id, username, avatar_url, created_at FROM users WHERE id = $1', [req.params.id]);
-    console.log(`Found ${rows.length} users for ID ${req.params.id}`);
-
-    if (rows.length === 0) return res.status(404).json({ message: 'المستخدم غير موجود' });
-
-    // Get published books count
-    const { rows: booksRows } = await db.query("SELECT COUNT(*) FROM books WHERE user_id = $1 AND status = 'approved'", [req.params.id]);
-
-    const user = rows[0];
-    user.published_books = parseInt(booksRows[0].count);
-
-    res.json(user);
-  } catch (error) {
-    console.error(`Error fetching user ${req.params.id}:`, error);
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// 4. تسجيل الدخول
-app.post('/api/auth/login', async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    const { rows } = await db.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (rows.length === 0) return res.status(401).json({ message: 'البريد غير مسجل' });
-
-    const user = rows[0];
-    const isValid = await bcrypt.compare(password, user.password_hash);
-    if (!isValid) return res.status(401).json({ message: 'كلمة المرور غير صحيحة' });
-
-    // تحديث الـ IP والدولة عند تسجيل الدخول
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    const country = req.headers['x-vercel-ip-country'] || 'Unknown';
-    await db.query('UPDATE users SET ip_address = $1, country = $2 WHERE id = $3', [ip, country, user.id]);
-
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
-
-    res.json({
-      message: 'تم الدخول بنجاح',
-      token,
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        avatar_url: user.avatar_url
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// 5. إنشاء حساب
+// 4. تسجيل حساب جديد
 app.post('/api/auth/signup', async (req, res) => {
   const { username, email, password } = req.body;
   try {
@@ -385,6 +333,24 @@ app.post('/api/auth/signup', async (req, res) => {
     );
 
     res.status(201).json({ message: 'تم إنشاء الحساب بنجاح' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// 5. تسجيل الدخول
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const { rows } = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (rows.length === 0) return res.status(401).json({ message: 'البريد الإلكتروني غير موجود' });
+
+    const user = rows[0];
+    const isValid = await bcrypt.compare(password, user.password_hash);
+    if (!isValid) return res.status(401).json({ message: 'كلمة المرور غير صحيحة' });
+
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
+    res.json({ message: 'تم تسجيل الدخول بنجاح', token, user: { id: user.id, username: user.username, email: user.email, role: user.role, avatar_url: user.avatar_url, is_verified: user.is_verified } });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -528,7 +494,7 @@ app.put('/api/users/profile', async (req, res) => {
     const { username, avatar_url } = req.body;
 
     const { rows } = await db.query(
-      'UPDATE users SET username = $1, avatar_url = $2 WHERE id = $3 RETURNING id, username, email, role, avatar_url',
+      'UPDATE users SET username = $1, avatar_url = $2 WHERE id = $3 RETURNING id, username, email, role, avatar_url, is_verified',
       [username, avatar_url, decoded.id]
     );
 
@@ -628,7 +594,7 @@ app.get('/api/connections', async (req, res) => {
     const decoded = jwt.verify(token, JWT_SECRET);
 
     const { rows } = await db.query(`
-      SELECT u.id, u.username, u.avatar_url, c.id as connection_id
+      SELECT u.id, u.username, u.avatar_url, u.is_verified, c.id as connection_id
       FROM users u
       JOIN connections c ON (u.id = c.sender_id OR u.id = c.receiver_id)
       WHERE (c.sender_id = $1 OR c.receiver_id = $1)
@@ -730,7 +696,7 @@ app.get('/api/users/search', async (req, res) => {
 
   try {
     const { rows } = await db.query(
-      "SELECT id, username, avatar_url FROM users WHERE username ILIKE $1 LIMIT 20",
+      "SELECT id, username, avatar_url, is_verified FROM users WHERE username ILIKE $1 LIMIT 20",
       [`%${q}%`]
     );
     res.json(rows);
@@ -965,7 +931,7 @@ app.delete('/api/follow/:id', async (req, res) => {
 app.get('/api/users/:id/followers', async (req, res) => {
   try {
     const { rows } = await db.query(`
-      SELECT u.id, u.username, u.avatar_url 
+      SELECT u.id, u.username, u.avatar_url, u.is_verified
       FROM users u
       JOIN follows f ON u.id = f.follower_id
       WHERE f.followed_id = $1
@@ -980,7 +946,7 @@ app.get('/api/users/:id/followers', async (req, res) => {
 app.get('/api/users/:id/following', async (req, res) => {
   try {
     const { rows } = await db.query(`
-      SELECT u.id, u.username, u.avatar_url 
+      SELECT u.id, u.username, u.avatar_url, u.is_verified
       FROM users u
       JOIN follows f ON u.id = f.followed_id
       WHERE f.follower_id = $1
@@ -1014,7 +980,7 @@ app.get('/api/connections/requests', async (req, res) => {
     const decoded = jwt.verify(token, JWT_SECRET);
 
     const { rows } = await db.query(`
-      SELECT c.id, u.id as user_id, u.username, u.avatar_url, c.created_at
+      SELECT c.id, u.id as user_id, u.username, u.avatar_url, u.is_verified, c.created_at
       FROM connections c
       JOIN users u ON c.sender_id = u.id
       WHERE c.receiver_id = $1 AND c.status = 'pending'
@@ -1074,6 +1040,63 @@ app.get('/api/notifications/summary', async (req, res) => {
 
   } catch (error) {
     console.error("Notification Summary Error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Verification Endpoints
+app.post('/api/users/verify-request', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    await db.query("UPDATE users SET verification_status = 'pending' WHERE id = $1", [decoded.id]);
+    res.json({ message: 'تم إرسال طلب التوثيق بنجاح' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+app.get('/api/admin/users/verification-requests', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
+
+    const { rows } = await db.query("SELECT id, username, email, avatar_url, created_at FROM users WHERE verification_status = 'pending'");
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+app.put('/api/admin/users/:id/verify', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
+
+    const { status } = req.body; // 'approved' or 'rejected'
+    if (!['approved', 'rejected'].includes(status)) return res.status(400).json({ message: 'حالة غير صالحة' });
+
+    const isVerified = status === 'approved';
+    const verificationStatus = status === 'approved' ? 'verified' : 'rejected';
+
+    await db.query(
+      "UPDATE users SET is_verified = $1, verification_status = $2 WHERE id = $3",
+      [isVerified, verificationStatus, req.params.id]
+    );
+
+    res.json({ message: `تم ${status === 'approved' ? 'قبول' : 'رفض'} طلب التوثيق` });
+  } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
