@@ -1102,6 +1102,17 @@ app.put('/api/admin/users/:id/verify', async (req, res) => {
 });
 
 
+// جلب بيانات مستخدم معين (للملف الشخصي)
+app.get('/api/users/:id', async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT id, username, email, role, avatar_url, created_at, is_verified, verification_status FROM users WHERE id = $1', [req.params.id]);
+    if (rows.length === 0) return res.status(404).json({ message: 'المستخدم غير موجود' });
+    res.json(rows[0]);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT} 🚀`));
 
