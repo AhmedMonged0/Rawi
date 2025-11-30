@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BadgeCheck } from 'lucide-react';
+import Avatar from '../components/Avatar';
 
 const UserSearch = () => {
     const [query, setQuery] = useState('');
@@ -44,7 +45,7 @@ const UserSearch = () => {
                         <Link to={`/profile/${user.id}`} key={user.id} className="block bg-gray-900 border border-gray-800 hover:border-green-500/50 rounded-xl p-4 transition-all">
                             <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 rounded-full bg-gray-800 overflow-hidden">
-                                    <img src={user.avatar_url || 'https://via.placeholder.com/150'} alt={user.username} className="w-full h-full object-cover" />
+                                    <Avatar url={user.avatar_url} username={user.username} size="w-full h-full" textSize="text-lg" />
                                 </div>
                                 <div>
                                     <h3 className="font-bold text-lg flex items-center gap-1">

@@ -4,29 +4,7 @@ import { Trash2, Edit2, MoreVertical, X, Check, AlertTriangle, Copy, BadgeCheck 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
 import { useModal } from '../context/ModalContext';
-
-const Avatar = ({ url, username, size = "w-10 h-10", textSize = "text-lg" }) => {
-    const [error, setError] = useState(false);
-
-    if (!url || error) {
-        return (
-            <div className={`${size} rounded-full bg-purple-600 flex items-center justify-center text-white font-bold ${textSize}`}>
-                {username ? username.charAt(0).toUpperCase() : '?'}
-            </div>
-        );
-    }
-
-    return (
-        <div className={`${size} rounded-full bg-gray-700 overflow-hidden`}>
-            <img
-                src={url}
-                alt={username}
-                className="w-full h-full object-cover"
-                onError={() => setError(true)}
-            />
-        </div>
-    );
-};
+import Avatar from '../components/Avatar';
 
 const Chat = () => {
     const navigate = useNavigate();

@@ -6,6 +6,7 @@ import {
     CreditCard, Trash2, Mail, User, Phone, Code, Feather, Zap, LogIn, LogOut, ShieldCheck, Users, History, Download, PenTool, BadgeCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Avatar from '../components/Avatar';
 
 // --- Helper: Gemini API ---
 const generateGeminiContent = async (prompt) => {
@@ -688,8 +689,9 @@ export default function Home() {
                                         ) : (
                                             pendingRequestsList.map(req => (
                                                 <div key={req.id} className="p-3 hover:bg-white/5 border-b border-white/5 last:border-0 flex items-center justify-between gap-2">
+
                                                     <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate(`/profile/${req.user_id}`)}>
-                                                        <img src={req.avatar_url || 'https://via.placeholder.com/30'} alt={req.username} className="w-8 h-8 rounded-full object-cover" />
+                                                        <Avatar url={req.avatar_url} username={req.username} size="w-8 h-8" textSize="text-xs" />
                                                         <div className="overflow-hidden">
                                                             <p className="text-sm font-bold truncate flex items-center gap-1">
                                                                 {req.username}
