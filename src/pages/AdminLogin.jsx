@@ -3,17 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Lock, User, Loader2, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import AdminDashboard from '../components/AdminDashboard';
+import { safeLocalStorage } from '../utils/storage';
 
 const AdminLogin = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [token, setToken] = useState(localStorage.getItem('rawi_admin_token'));
+    const [token, setToken] = useState(safeLocalStorage.getItem('rawi_admin_token'));
     const navigate = useNavigate();
 
     const handleLogout = () => {
-        localStorage.removeItem('rawi_admin_token');
+        safeLocalStorage.removeItem('rawi_admin_token');
         setToken(null);
     };
 
@@ -33,7 +34,7 @@ const AdminLogin = () => {
 
             if (response.ok) {
                 setToken(data.token);
-                localStorage.setItem('rawi_admin_token', data.token);
+                safeLocalStorage.setItem('rawi_admin_token', data.token);
             } else {
                 setError(data.message || 'فشل تسجيل الدخول');
             }

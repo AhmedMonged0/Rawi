@@ -381,16 +381,23 @@ app.get('/api/admin/users', async (req, res) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
-  if (!token) return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+  if (!token) {
+    console.log('Admin Users: No token provided');
+    return res.status(401).json({ message: 'مطلوب تسجيل دخول' });
+  }
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    if (decoded.role !== 'admin') return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
+    if (decoded.role !== 'admin') {
+      console.log(`Admin Users: Access denied. Role: ${decoded.role}, User: ${decoded.username}`);
+      return res.status(403).json({ message: 'غير مسموح لك بهذا الإجراء' });
+    }
 
     const { rows } = await db.query('SELECT id, username, email, role, created_at, ip_address, country FROM users ORDER BY created_at DESC');
     res.json(rows);
 
   } catch (error) {
+    console.error('Admin Users: Token verification failed:', error.message);
     res.status(403).json({ message: 'توكن غير صالح' });
   }
 });

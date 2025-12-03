@@ -3,6 +3,7 @@ import { FileText, X, Check, XCircle, Eye, BadgeCheck } from 'lucide-react';
 
 import { useToast } from '../context/ToastContext';
 import { useModal } from '../context/ModalContext';
+import { safeLocalStorage } from '../utils/storage';
 
 const AdminDashboard = () => {
     const { showToast } = useToast();
@@ -17,7 +18,7 @@ const AdminDashboard = () => {
     }, []);
 
     const fetchPendingBooks = async () => {
-        const token = localStorage.getItem('rawi_token');
+        const token = safeLocalStorage.getItem('rawi_token');
         if (!token) return;
 
         try {
@@ -34,7 +35,7 @@ const AdminDashboard = () => {
     };
 
     const fetchVerificationRequests = async () => {
-        const token = localStorage.getItem('rawi_token');
+        const token = safeLocalStorage.getItem('rawi_token');
         if (!token) return;
 
         try {
@@ -50,7 +51,7 @@ const AdminDashboard = () => {
     };
 
     const handleVerificationAction = async (userId, status) => {
-        const token = localStorage.getItem('rawi_token');
+        const token = safeLocalStorage.getItem('rawi_token');
         try {
             const res = await fetch(`/api/admin/users/${userId}/verify`, {
                 method: 'PUT',
@@ -71,7 +72,7 @@ const AdminDashboard = () => {
     };
 
     const handleAction = async (bookId, status, feedback = '') => {
-        const token = localStorage.getItem('rawi_token');
+        const token = safeLocalStorage.getItem('rawi_token');
         try {
             const res = await fetch(`/api/admin/books/${bookId}/status`, {
                 method: 'PUT',
