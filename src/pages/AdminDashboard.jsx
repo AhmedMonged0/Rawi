@@ -3,7 +3,6 @@ import { FileText, X, Check, XCircle, Eye, BadgeCheck } from 'lucide-react';
 
 import { useToast } from '../context/ToastContext';
 import { useModal } from '../context/ModalContext';
-import { safeLocalStorage } from '../utils/storage';
 
 const AdminDashboard = () => {
     const { showToast } = useToast();
@@ -18,7 +17,7 @@ const AdminDashboard = () => {
     }, []);
 
     const fetchPendingBooks = async () => {
-        const token = safeLocalStorage.getItem('rawi_token');
+        const token = localStorage.getItem('rawi_token');
         if (!token) return;
 
         try {
@@ -35,7 +34,7 @@ const AdminDashboard = () => {
     };
 
     const fetchVerificationRequests = async () => {
-        const token = safeLocalStorage.getItem('rawi_token');
+        const token = localStorage.getItem('rawi_token');
         if (!token) return;
 
         try {
